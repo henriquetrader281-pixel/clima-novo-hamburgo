@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estação do Vale — Novo Hamburgo &amp; Lomba Grande</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --navy-950:#0f1c26;
+    --navy-900:#152634;
+    --navy-800:#1c3242;
+    --navy-700:#26445a;
+    --slate-400:#7c93a3;
+    --slate-200:#c7d3da;
+    --paper:#eef1ee;
+    --rain-blue:#5b9bc4;
+    --rain-blue-dim:#3a5f78;
+    --gold:#e8a33d;
+    --gold-dim:#b87f28;
+    --storm-red:#c15a4a;
+    --alert-storm:#9d7fe0;
+    --alert-rain:#4fa3d9;
+    --alert-tornado:#e0475c;
+    --alert-drought:#c2833f;
+    --alert-hail:#8fd3d6;
+    --sev-yellow:#e8c33d;
+    --sev-orange:#e0812f;
+    --sev-red:#e0475c;
+    --line:rgba(199,211,218,0.14);
+    --font-display:'Space Grotesk', 'Arial Narrow', sans-serif;
+    --font-body:'Inter', -apple-system, sans-serif;
+    --font-mono:'IBM Plex Mono', 'Courier New', monospace;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background: var(--navy-950);
+    color: var(--paper);
+    font-family: var(--font-body);
+    min-height:100vh;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(91,155,196,0.16), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(232,163,61,0.08), transparent 55%);
+  }
+
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ---------- HEADER / INSTRUMENT PANEL ---------- */
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px; margin-bottom: 22px;
+  }
+  .brand-eyebrow{
+    font-family: var(--font-mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color: var(--rain-blue); margin-bottom:6px;
+  }
+  h1{
+    font-family: var(--font-display); font-weight:600; font-size: clamp(24px,4vw,34px);
+    letter-spacing:-0.01em;
+  }
+  .subtitle{ color: var(--slate-400); font-size:13.5px; margin-top:4px; max-width:46ch; }
+
+  .clock{
+    font-family: var(--font-mono); text-align:right; color: var(--slate-200); font-size:13px;
+  }
+  .clock .big{ font-size:22px; color:var(--paper); letter-spacing:.02em; }
+
+  /* ---------- LOCATION TABS ---------- */
+  .station-select{
+    display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap;
+  }
+  .station-btn{
+    font-family: var(--font-mono); font-size:12.5px; letter-spacing:.03em;
+    background: var(--navy-900); border:1px solid var(--line); color: var(--slate-200);
+    padding:10px 16px; border-radius:3px; cursor:pointer; transition: all .15s ease;
+    display:flex; align-items:center; gap:8px;
+  }
+  .station-btn .dot{ width:6px; height:6px; border-radius:50%; background: var(--slate-400); }
+  .station-btn:hover{ border-color: var(--rain-blue); color:var(--paper); }
+  .station-btn.active{ background: var(--navy-800); border-color: var(--gold); color: var(--paper); }
+  .station-btn.active .dot{ background: var(--gold); box-shadow:0 0 6px var(--gold); }
+
+  /* ---------- LOADING / ERROR ---------- */
+  .status-msg{
+    font-family: var(--font-mono); font-size:13px; color: var(--slate-400);
+    min-height:120px; padding:40px 0; text-align:center; display:none;
+  }
+  .status-msg.show{ display:block; }
+  .status-msg.error{ color: var(--storm-red); }
+  .status-msg small{ display:block; max-width:520px; margin:8px auto 14px; color:var(--slate-400); line-height:1.6; font-family:var(--font-body); }
+  .retry-btn{
+    border:1px solid var(--storm-red); background:transparent; color:var(--paper);
+    border-radius:4px; padding:9px 14px; cursor:pointer; font:500 12px var(--font-mono);
+  }
+  .retry-btn:hover{ background:rgba(193,90,74,.14); }
+
+  #content{ display:none; }
+  #content.show{ display:block; }
+
+  /* ---------- ALERTS ---------- */
+  .alerts-row{
+    display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .alert-chip{
+    display:flex; align-items:center; gap:9px;
+    background: var(--navy-900); border:1px solid var(--line); border-left:3px solid var(--chip-color, var(--gold));
+    border-radius:4px; padding:10px 14px; font-family: var(--font-mono); font-size:12px; color: var(--paper);
+    cursor:pointer; transition: background .15s ease;
+  }
+  .alert-chip:hover{ background: var(--navy-800); }
+  .alert-chip .chip-icon{ width:16px; height:16px; flex-shrink:0; }
+  .alert-chip .chip-label{ color: var(--chip-color, var(--gold)); font-weight:600; letter-spacing:.03em; }
+  .alert-chip .chip-day{ color: var(--slate-400); }
+
+  .day-label{
+    font-family: var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color: var(--slate-400); margin-bottom:10px;
+  }
+
+  /* ---------- CURRENT CONDITIONS ---------- */
+  .now-panel{
+    display:grid; grid-template-columns: 1.3fr 1fr; gap:1px;
+    background: var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden;
+    margin-bottom: 18px;
+  }
+  @media (max-width:640px){ .now-panel{ grid-template-columns:1fr; } }
+
+  .now-main{
+    background: var(--navy-900); padding: 28px 26px; display:flex; align-items:center; gap:22px;
+  }
+  .now-icon{ width:76px; height:76px; flex-shrink:0; }
+  .now-temp{ font-family: var(--font-display); font-size: 58px; font-weight:600; line-height:1; letter-spacing:-.02em; }
+  .now-temp sup{ font-size:24px; font-weight:500; top:-.6em; }
+  .now-desc{ font-size:15px; color: var(--slate-200); margin-top:6px; }
+  .now-feels{ font-family: var(--font-mono); font-size:12px; color: var(--slate-400); margin-top:4px; }
+
+  .now-stats{ background: var(--navy-900); display:grid; grid-template-columns:1fr 1fr; }
+  .stat-cell{
+    padding: 18px 20px; border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .stat-cell:nth-child(2n){ }
+  .stat-label{ font-family: var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color: var(--slate-400); margin-bottom:6px; }
+  .stat-value{ font-family: var(--font-mono); font-size:19px; color: var(--paper); }
+  .stat-value .unit{ font-size:12px; color: var(--slate-400); }
+
+  /* ---------- RAIN GAUGE + WIND ---------- */
+  .dual-panel{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:18px; }
+  @media (max-width:640px){ .dual-panel{ grid-template-columns:1fr; } }
+
+  .card{
+    background: var(--navy-900); border:1px solid var(--line); border-radius:4px; padding:20px 22px;
+  }
+  .card-title{
+    font-family: var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--rain-blue); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;
+  }
+
+  /* rain gauge */
+  .gauge-row{ display:flex; align-items:flex-end; gap:18px; }
+  .gauge-tube{
+    width:34px; height:130px; border:1px solid var(--line); border-radius:17px; position:relative; overflow:hidden;
+    background: var(--navy-950); flex-shrink:0;
+  }
+  .gauge-fill{
+    position:absolute; bottom:0; left:0; width:100%; background: linear-gradient(180deg, var(--rain-blue), var(--rain-blue-dim));
+    transition: height 1s cubic-bezier(.4,0,.2,1); border-radius:0 0 17px 17px;
+  }
+  .gauge-readout{ flex:1; }
+  .gauge-num{ font-family: var(--font-display); font-size:36px; font-weight:600; color:var(--paper); line-height:1; }
+  .gauge-num .u{ font-size:16px; color: var(--slate-400); font-weight:400; }
+  .gauge-sub{ font-family: var(--font-mono); font-size:12px; color: var(--slate-400); margin-top:8px; }
+  .prob-bar-track{ height:5px; background: var(--navy-950); border-radius:3px; margin-top:12px; overflow:hidden; }
+  .prob-bar-fill{ height:100%; background: var(--gold); transition: width .8s ease; }
+
+  /* wind compass */
+  .wind-row{ display:flex; align-items:center; gap:20px; }
+  .compass{ width:110px; height:110px; flex-shrink:0; }
+  .wind-readout .stat-value{ font-size:26px; }
+  .wind-readout .stat-label{ margin-top:12px; }
+  .wind-readout .stat-label:first-child{ margin-top:0; }
+
+  /* ---------- HOURLY STRIP ---------- */
+  .hourly-scroll{
+    display:flex; gap:2px; overflow-x:auto; padding-bottom:6px; margin-top:4px;
+    scrollbar-width: thin; scrollbar-color: var(--rain-blue-dim) transparent;
+  }
+  .hour-col{
+    min-width:52px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:10px 4px; border-radius:3px;
+  }
+  .hour-col.now{ background: rgba(232,163,61,0.08); border:1px solid rgba(232,163,61,0.3); }
+  .hour-time{ font-family: var(--font-mono); font-size:11px; color: var(--slate-400); }
+  .hour-icon{ width:26px; height:26px; }
+  .hour-precip{ font-family: var(--font-mono); font-size:11px; color: var(--rain-blue); min-height:14px; }
+  .hour-temp{ font-family: var(--font-mono); font-size:13px; color: var(--paper); }
+
+  /* ---------- 15 DAY ---------- */
+  .days-grid{
+    display:flex; gap:1px; background: var(--line); overflow-x:auto;
+    border:1px solid var(--line); border-radius:4px; margin-bottom:18px;
+    scrollbar-width: thin; scrollbar-color: var(--rain-blue-dim) transparent;
+  }
+  .day-col{
+    background: var(--navy-900); padding:16px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px;
+    cursor:pointer; transition: background .15s ease; border-bottom: 2px solid transparent;
+    min-width:78px; flex-shrink:0;
+  }
+  .day-col:hover{ background: var(--navy-800); }
+  .day-col.active{ background: var(--navy-800); border-bottom: 2px solid var(--gold); }
+  .day-col.active .day-name{ color: var(--gold); }
+  .day-col.low-confidence{ opacity:0.6; }
+  .day-col.low-confidence:hover, .day-col.low-confidence.active{ opacity:1; }
+  .day-date{ font-family: var(--font-mono); font-size:9.5px; color: var(--slate-400); opacity:.8; margin-top:-4px; }
+  .day-name{ font-family: var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color: var(--slate-400); }
+  .day-icon{ width:28px; height:28px; margin:2px 0; }
+  .day-temps{ font-family: var(--font-mono); font-size:13px; }
+  .day-temps .max{ color: var(--paper); }
+  .day-temps .min{ color: var(--slate-400); }
+  .day-rain{ font-family: var(--font-mono); font-size:11px; color: var(--rain-blue); }
+  .days-caption{
+    font-family: var(--font-mono); font-size:11px; color: var(--slate-400); margin: -10px 0 18px; padding-left:2px;
+  }
+
+  /* ---------- RIVER MONITORING ---------- */
+  .river-card{ margin-bottom:18px; }
+  .river-head{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+  .river-risk-pill{
+    display:inline-flex; align-items:center; gap:8px; font-family: var(--font-mono); font-size:12px;
+    padding:7px 14px; border-radius:20px; border:1px solid var(--pill-color, var(--slate-400));
+    color: var(--pill-color, var(--slate-400)); background: color-mix(in srgb, var(--pill-color, var(--slate-400)) 12%, transparent);
+  }
+  .river-risk-pill .dot{ width:7px; height:7px; border-radius:50%; background: var(--pill-color, var(--slate-400)); }
+  .river-sub{ font-size:12.5px; color: var(--slate-400); max-width:52ch; line-height:1.5; margin-top:4px; }
+
+  /* live station readouts (Nível Guaíba feed) */
+  .river-live-wrap{ display:none; margin-bottom:18px; }
+  .river-live-wrap.show{ display:block; }
+  .river-live-badge{
+    font-family: var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color: var(--rain-blue); display:flex; align-items:center; gap:6px; margin-bottom:12px;
+  }
+  .river-live-badge .pulse{
+    width:6px; height:6px; border-radius:50%; background: var(--rain-blue); box-shadow:0 0 6px var(--rain-blue);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .river-stations{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background: var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden; margin-bottom:12px; }
+  @media (max-width:520px){ .river-stations{ grid-template-columns:1fr; } }
+  .river-station{ background: var(--navy-900); padding:14px 16px; }
+  .river-station-label{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color: var(--slate-400); margin-bottom:8px; }
+  .river-station-level{ font-family: var(--font-display); font-size:26px; font-weight:600; color: var(--paper); line-height:1; }
+  .river-station-status{ font-family: var(--font-mono); font-size:11.5px; margin-top:6px; font-weight:600; }
+  .river-station-time{ font-family: var(--font-mono); font-size:10.5px; color: var(--slate-400); margin-top:3px; }
+  .river-station-empty{ font-family: var(--font-mono); font-size:12px; color: var(--slate-400); padding-top:4px; }
+
+  .river-spark-box{ background: var(--navy-900); border:1px solid var(--line); border-radius:4px; padding:12px 16px 8px; margin-bottom:12px; }
+  .river-spark-label{ font-family: var(--font-mono); font-size:10.5px; color: var(--slate-400); margin-bottom:4px; display:flex; justify-content:space-between; }
+  #riverSparkline{ line-height:0; }
+  #riverSparkline svg{ display:block; }
+
+  .river-live-error{ display:none; font-family: var(--font-mono); font-size:12px; color: var(--slate-400); margin-bottom:18px; padding:14px 16px; background: var(--navy-900); border:1px solid var(--line); border-radius:4px; }
+  .river-live-error.show{ display:block; }
+
+  .river-estimate-label{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color: var(--slate-400); margin-bottom:8px; }
+
+  .river-table{ width:100%; border-collapse:collapse; margin: 4px 0 16px; }
+  .river-table th, .river-table td{
+    text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); font-size:12.5px;
+  }
+  .river-table th{ font-family: var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color: var(--slate-400); font-weight:500; }
+  .river-table td{ font-family: var(--font-mono); color: var(--slate-200); }
+  .river-table td.city{ font-family: var(--font-body); color: var(--paper); }
+
+  .river-links{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .river-link{
+    font-family: var(--font-mono); font-size:11.5px; color: var(--slate-200); text-decoration:none;
+    border:1px solid var(--line); border-radius:3px; padding:8px 13px; display:inline-flex; align-items:center; gap:7px;
+    transition: all .15s ease;
+  }
+  .river-link:hover{ border-color: var(--rain-blue); color: var(--paper); }
+  .river-link svg{ width:12px; height:12px; opacity:.7; }
+
+  /* ---------- ENSO / EL NIÑO ---------- */
+  .enso-card{ margin-bottom:18px; }
+  .enso-head{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+  .enso-phase-badge{
+    font-family: var(--font-mono); font-size:12px; font-weight:600; letter-spacing:.03em;
+    padding:7px 14px; border-radius:20px; border:1px solid var(--sev-orange); color: var(--sev-orange);
+    background: color-mix(in srgb, var(--sev-orange) 12%, transparent); white-space:nowrap;
+  }
+  .enso-stats-row{ display:flex; gap:24px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  .enso-gauge-wrap{ position:relative; width:104px; height:104px; flex-shrink:0; }
+  .enso-gauge-wrap svg{ width:100%; height:100%; }
+  .enso-gauge-num{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family: var(--font-display); font-size:24px; font-weight:600; color:var(--paper); text-align:center;
+  }
+  .enso-stat-list{ display:flex; flex-direction:column; gap:10px; flex:1; min-width:200px; }
+  .enso-mini-stat{ display:flex; justify-content:space-between; gap:14px; font-size:12.5px; border-bottom:1px solid var(--line); padding-bottom:8px; }
+  .enso-mini-stat .label{ color: var(--slate-400); font-family: var(--font-mono); font-size:11px; }
+  .enso-mini-stat .value{ color: var(--paper); font-family: var(--font-mono); text-align:right; }
+  .enso-region-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+  .enso-region-chip{
+    font-size:12.5px; line-height:1.5; padding:11px 14px; border-radius:4px; background: var(--navy-950);
+    border-left:3px solid var(--chip-color, var(--slate-400)); color: var(--slate-200);
+  }
+  .enso-region-chip.high{ --chip-color: var(--sev-orange); }
+  .enso-region-chip.low{ --chip-color: var(--rain-blue); }
+  .enso-region-chip b{ color: var(--paper); }
+
+  /* ---------- VALIDATION NOTE ---------- */
+  .validate-note{
+    background: var(--navy-900); border:1px solid var(--line); border-left:3px solid var(--gold);
+    border-radius:4px; padding:18px 20px; font-size:13px; color: var(--slate-200); line-height:1.6;
+    margin-bottom: 18px;
+  }
+  .validate-note b{ color: var(--paper); }
+  .validate-note a{ color: var(--gold); text-decoration:none; border-bottom:1px solid var(--gold-dim); }
+  .validate-note a:hover{ color: var(--paper); }
+
+  footer{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+    font-family: var(--font-mono); font-size:11.5px; color: var(--slate-400); padding-top:10px;
+  }
+  .refresh-btn{
+    background:none; border:1px solid var(--line); color: var(--slate-200); font-family:var(--font-mono);
+    font-size:11.5px; padding:8px 14px; border-radius:3px; cursor:pointer; display:flex; align-items:center; gap:8px;
+  }
+  .refresh-btn:hover{ border-color: var(--rain-blue); color:var(--paper); }
+  .refresh-btn svg{ width:12px; height:12px; }
+  .refresh-btn.spinning svg{ animation: spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="brand-eyebrow">Estação do Vale · Boletim local</div>
+      <h1>Clima — Novo Hamburgo &amp; Lomba Grande</h1>
+      <div class="subtitle">Previsão de 15 dias, alertas de tempestade e granizo, e indicador de cheia do Rio dos Sinos — via Open-Meteo (dados abertos), atualizado a cada 15 minutos.</div>
+    </div>
+    <div class="clock">
+      <div class="big" id="clockTime">--:--</div>
+      <div id="clockDate">--</div>
+    </div>
+  </header>
+
+  <div class="station-select" id="stationSelect">
+    <button class="station-btn active" data-station="nh"><span class="dot"></span>Novo Hamburgo — Centro</button>
+    <button class="station-btn" data-station="lg"><span class="dot"></span>Lomba Grande</button>
+  </div>
+
+  <div class="status-msg show" id="statusMsg">Sincronizando com a estação…</div>
+
+  <div id="content">
+
+    <div class="alerts-row" id="alertsRow"></div>
+
+    <div class="day-label" id="dayLabel">Agora — condições atuais</div>
+
+    <div class="now-panel">
+      <div class="now-main">
+        <svg class="now-icon" id="nowIcon" viewBox="0 0 64 64"></svg>
+        <div>
+          <div class="now-temp" id="nowTemp">--<sup>°C</sup></div>
+          <div class="now-desc" id="nowDesc">—</div>
+          <div class="now-feels" id="nowFeels">SENSAÇÃO —°C</div>
+        </div>
+      </div>
+      <div class="now-stats">
+        <div class="stat-cell">
+          <div class="stat-label">Umidade</div>
+          <div class="stat-value" id="statHum">-- <span class="unit">%</span></div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-label">Pressão</div>
+          <div class="stat-value" id="statPress">-- <span class="unit">hPa</span></div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-label">Nebulosidade</div>
+          <div class="stat-value" id="statCloud">-- <span class="unit">%</span></div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-label">Visibilidade do céu</div>
+          <div class="stat-value" id="statVis">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dual-panel">
+      <div class="card">
+        <div class="card-title"><span id="gaugeTitle">Chuva acumulada — hoje</span></div>
+        <div class="gauge-row">
+          <div class="gauge-tube"><div class="gauge-fill" id="gaugeFill" style="height:0%"></div></div>
+          <div class="gauge-readout">
+            <div class="gauge-num" id="rainToday">0<span class="u">mm</span></div>
+            <div class="gauge-sub" id="rainNext">Prob. próximas 3h: --%</div>
+            <div class="prob-bar-track"><div class="prob-bar-fill" id="probFill" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Vento</div>
+        <div class="wind-row">
+          <svg class="compass" id="compassSvg" viewBox="0 0 100 100"></svg>
+          <div class="wind-readout">
+            <div class="stat-label">Velocidade</div>
+            <div class="stat-value" id="windSpeed">-- <span class="unit">km/h</span></div>
+            <div class="stat-label">Rajadas</div>
+            <div class="stat-value" id="windGust">-- <span class="unit">km/h</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-title"><span id="hourlyTitle">Próximas 24 horas</span></div>
+      <div class="hourly-scroll" id="hourlyScroll"></div>
+    </div>
+
+    <div class="days-grid" id="daysGrid"></div>
+    <div class="days-caption">Previsão de 15 dias — dias 8 a 15 têm confiança menor (modelo de mais longo prazo), por isso aparecem esmaecidos.</div>
+
+    <div class="card river-card">
+      <div class="card-title" style="margin-bottom:14px;">Rio dos Sinos — monitoramento</div>
+
+      <div class="river-live-wrap" id="riverLiveWrap">
+        <div class="river-live-badge"><span class="pulse"></span>Leituras reais — telemetria SGB/CPRM · ANA (via Nível Guaíba)</div>
+        <div class="river-stations">
+          <div class="river-station" id="riverStation_taquara"></div>
+          <div class="river-station" id="riverStation_saoleopoldo"></div>
+        </div>
+        <div class="river-spark-box">
+          <div class="river-spark-label"><span>São Leopoldo — variação desta sessão</span><span id="riverSparkRange"></span></div>
+          <div id="riverSparkline"></div>
+        </div>
+      </div>
+      <div class="river-live-error" id="riverLiveError">
+        Não consegui carregar as leituras ao vivo agora (pode ser bloqueio de rede do navegador). Veja o nível real direto na fonte: <a href="https://nivelguaiba.com.br/saoleopoldo" target="_blank" rel="noopener" style="color:var(--gold);">nivelguaiba.com.br/saoleopoldo</a>.
+      </div>
+
+      <div class="river-head">
+        <div>
+          <div class="river-estimate-label">Estimativa complementar — chuva prevista</div>
+          <div class="river-sub" id="riverSub">Calculando com base na chuva prevista para a região…</div>
+        </div>
+        <div class="river-risk-pill" id="riverPill" style="--pill-color: var(--slate-400);">
+          <span class="dot"></span><span id="riverPillText">—</span>
+        </div>
+      </div>
+
+      <table class="river-table">
+        <thead><tr><th>Município</th><th>Cota de atenção</th><th>Cota de inundação</th></tr></thead>
+        <tbody>
+          <tr><td class="city">Novo Hamburgo</td><td>6,60 m</td><td>~6,80–7,00 m</td></tr>
+          <tr><td class="city">Campo Bom</td><td>—</td><td>7,20 m</td></tr>
+          <tr><td class="city">São Leopoldo (estação ANA 87382000)</td><td>—</td><td>4,50 m</td></tr>
+          <tr><td class="city">Sapiranga</td><td>—</td><td>sem cota oficial divulgada</td></tr>
+        </tbody>
+      </table>
+      <div class="river-sub" style="margin-bottom:14px;">
+        Valores de referência divulgados pela Defesa Civil em boletins de cheias anteriores — cada régua fica em um ponto diferente do rio, por isso os números não são comparáveis entre municípios, e a Defesa Civil pode revisá-los a qualquer momento. Novo Hamburgo ainda não tem um sensor público de nível em tempo real (um projeto-piloto foi instalado em 2025 na Comusa, em Lomba Grande, mas sem leitura pública automatizada até o momento) — por isso as leituras reais acima são de Taquara (a montante) e São Leopoldo (a jusante), as estações mais próximas no mesmo rio.
+      </div>
+      <div class="river-links">
+        <a class="river-link" href="https://nivelguaiba.com.br/saoleopoldo" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-4 4"/></svg>
+          Gráfico completo — Nível Guaíba
+        </a>
+        <a class="river-link" href="https://clima.rs.gov.br/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h9l5 5v-5h0"/></svg>
+          Níveis dos rios — ClimaRS
+        </a>
+        <a class="river-link" href="https://www.sgb.gov.br/sace/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          SACE — SGB/CPRM
+        </a>
+        <a class="river-link" href="https://www.novohamburgo.rs.gov.br/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+          Defesa Civil NH · 199
+        </a>
+      </div>
+    </div>
+
+    <div class="card enso-card">
+      <div class="enso-head">
+        <div>
+          <div class="card-title" style="margin-bottom:6px;">El Niño — Monitor ENOS 2026/2027</div>
+          <div class="river-sub">Formação confirmada pela NOAA em 11 de junho de 2026 — águas do Pacífico Equatorial com anomalias acima de 2°C perto da costa da América do Sul, padrão clássico do fenômeno.</div>
+        </div>
+        <div class="enso-phase-badge">El Niño ativo</div>
+      </div>
+
+      <div class="enso-stats-row">
+        <div class="enso-gauge-wrap">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="44" fill="none" stroke="var(--sev-orange)" stroke-width="8"
+              stroke-dasharray="276.5" stroke-dashoffset="102.3" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+          </svg>
+          <div class="enso-gauge-num">63%<span style="font-family:var(--font-mono); font-size:9px; color:var(--slate-400); font-weight:400; margin-top:2px;">SUPER<br>EL NIÑO</span></div>
+        </div>
+        <div class="enso-stat-list">
+          <div class="enso-mini-stat"><span class="label">Persistência</span><span class="value">&gt;90% de chance ativo até início de 2027</span></div>
+          <div class="enso-mini-stat"><span class="label">Anomalia TSM (Pacífico)</span><span class="value">+1,8°C a +2,5°C</span></div>
+          <div class="enso-mini-stat"><span class="label">Boletim oficial</span><span class="value">INMET·INPE·ANA·CEMADEN·SGB — 29/jun/2026</span></div>
+        </div>
+      </div>
+
+      <div class="enso-region-row">
+        <div class="enso-region-chip high"><b>Sul do Brasil (RS · SC · PR)</b> — chuvas acima da média e risco elevado de temporais, cheias e deslizamentos, mais intenso na primavera e verão</div>
+        <div class="enso-region-chip low"><b>Norte / Nordeste</b> — tendência de estiagem e chuva abaixo da média</div>
+      </div>
+
+      <div class="river-sub" style="margin: 14px 0 14px;">
+        Anos de El Niño historicamente elevam o risco de cheias no Rio Grande do Sul — o ciclo El Niño 2023/2024 foi um dos fatores por trás das enchentes de maio de 2024. Vale acompanhar de perto o indicador do Rio dos Sinos acima ao longo da primavera e do verão.
+      </div>
+      <div class="river-links">
+        <a class="river-link" href="https://monitorelninobrasi.com.br/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.5 2V6L9 4l6 2 5.5-2v16L15 22l-6-2z"/></svg>
+          Mapa por estado — Monitor El Niño Brasil
+        </a>
+        <a class="river-link" href="https://www.ncei.noaa.gov/access/monitoring/enso/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>
+          NOAA/NCEI — ENSO
+        </a>
+        <a class="river-link" href="https://portal.inmet.gov.br/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.9 4.9l2.8 2.8"/><path d="M16.3 16.3l2.8 2.8"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.9 19.1l2.8-2.8"/><path d="M16.3 7.7l2.8-2.8"/></svg>
+          INMET
+        </a>
+      </div>
+    </div>
+
+    <div class="validate-note">
+      <b>Sobre a precisão dos dados:</b> este boletim usa o modelo aberto Open-Meteo (baseado em dados do INMET/ECMWF/GFS), que cobre bem tanto o Centro de Novo Hamburgo quanto o distrito de Lomba Grande. Sites de meteorologia locais como o <a href="https://metsul.com" target="_blank" rel="noopener">MetSul</a> não oferecem uma API pública para leitura automática — por isso, para eventos de chuva forte, vento ou frente fria, vale <b>conferir manualmente o boletim do MetSul</b> como segunda fonte antes de decisões importantes.
+    </div>
+
+    <footer>
+      <span id="lastUpdate">Última leitura: --</span>
+      <button class="refresh-btn" id="refreshBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+        Atualizar agora
+      </button>
+    </footer>
+
+  </div>
+
+  <div class="status-msg error" id="errorMsg" role="alert" aria-live="assertive">
+    <strong>Não foi possível carregar os dados.</strong>
+    <small id="errorDetail">Verifique a ligação e tente novamente. A previsão é obtida em tempo real.</small>
+    <button class="retry-btn" id="retryBtn" type="button">Tentar novamente</button>
+  </div>
+
+</div>
+
+<script>
+const STATIONS = {
+  nh: { name: "Novo Hamburgo — Centro", lat: -29.6783, lon: -51.1308 },
+  lg: { name: "Lomba Grande", lat: -29.7605, lon: -50.9929 }
+};
+let currentStation = 'nh';
+let refreshTimer = null;
+let lastData = null;
+let selectedDay = 0;
+let riverHistory = [];
+let weatherRequestId = 0;
+let weatherController = null;
+let hasWeatherData = false;
+
+const WMO = {
+  0:  { desc: "Céu limpo", cat: "clear" },
+  1:  { desc: "Predomínio de sol", cat: "clear" },
+  2:  { desc: "Parcialmente nublado", cat: "cloudy" },
+  3:  { desc: "Encoberto", cat: "cloudy" },
+  45: { desc: "Nevoeiro", cat: "fog" },
+  48: { desc: "Nevoeiro com geada", cat: "fog" },
+  51: { desc: "Garoa fraca", cat: "drizzle" },
+  53: { desc: "Garoa", cat: "drizzle" },
+  55: { desc: "Garoa forte", cat: "drizzle" },
+  56: { desc: "Garoa gelada", cat: "drizzle" },
+  57: { desc: "Garoa gelada forte", cat: "drizzle" },
+  61: { desc: "Chuva fraca", cat: "rain" },
+  63: { desc: "Chuva", cat: "rain" },
+  65: { desc: "Chuva forte", cat: "rain" },
+  66: { desc: "Chuva gelada", cat: "rain" },
+  67: { desc: "Chuva gelada forte", cat: "rain" },
+  71: { desc: "Neve fraca", cat: "rain" },
+  73: { desc: "Neve", cat: "rain" },
+  75: { desc: "Neve forte", cat: "rain" },
+  77: { desc: "Grãos de neve", cat: "rain" },
+  80: { desc: "Pancadas fracas", cat: "rain" },
+  81: { desc: "Pancadas de chuva", cat: "rain" },
+  82: { desc: "Pancadas fortes", cat: "rain" },
+  85: { desc: "Pancadas de neve", cat: "rain" },
+  86: { desc: "Pancadas de neve fortes", cat: "rain" },
+  95: { desc: "Trovoadas", cat: "storm" },
+  96: { desc: "Trovoada com granizo", cat: "storm" },
+  99: { desc: "Trovoada forte com granizo", cat: "storm" }
+};
+
+function iconSvg(cat, size){
+  const c = {
+    clear:  { body: `<circle cx="32" cy="32" r="14" fill="var(--gold)"/>
+      ${[0,45,90,135,180,225,270,315].map(a=>`<line x1="32" y1="32" x2="32" y2="32" transform="rotate(${a} 32 32) translate(0,-24)" stroke="var(--gold)" stroke-width="3" stroke-linecap="round" x1="0" y1="0" x2="0" y2="8"/>`).join('')}` },
+    cloudy: { body: `<circle cx="24" cy="30" r="10" fill="var(--slate-200)" opacity="0.5"/><ellipse cx="34" cy="38" rx="20" ry="13" fill="var(--slate-200)"/>` },
+    fog:    { body: `<g stroke="var(--slate-400)" stroke-width="3" stroke-linecap="round"><line x1="12" y1="26" x2="52" y2="26"/><line x1="8" y1="34" x2="56" y2="34"/><line x1="14" y1="42" x2="50" y2="42"/></g>` },
+    drizzle:{ body: `<ellipse cx="32" cy="26" rx="19" ry="12" fill="var(--slate-200)"/><g stroke="var(--rain-blue)" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="44" x2="19" y2="52"/><line x1="32" y1="44" x2="29" y2="52"/><line x1="42" y1="44" x2="39" y2="52"/></g>` },
+    rain:   { body: `<ellipse cx="32" cy="24" rx="20" ry="12" fill="var(--slate-200)"/><g stroke="var(--rain-blue)" stroke-width="3" stroke-linecap="round"><line x1="20" y1="42" x2="16" y2="54"/><line x1="32" y1="42" x2="28" y2="54"/><line x1="44" y1="42" x2="40" y2="54"/></g>` },
+    storm:  { body: `<ellipse cx="32" cy="22" rx="19" ry="11" fill="var(--slate-400)"/><polygon points="34,36 24,52 31,52 27,62 42,44 34,44" fill="var(--gold)"/>` }
+  };
+  const chosen = c[cat] || c.cloudy;
+  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${chosen.body}</svg>`;
+}
+
+function windCompass(deg, speed){
+  const pct = Math.min(speed/60,1);
+  return `
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+    <circle cx="50" cy="50" r="46" fill="none" stroke="var(--rain-blue-dim)" stroke-width="2"
+      stroke-dasharray="${pct*289} 289" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+    <text x="50" y="14" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="var(--slate-400)">N</text>
+    <text x="90" y="53" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="var(--slate-400)">L</text>
+    <text x="50" y="92" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="var(--slate-400)">S</text>
+    <text x="10" y="53" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="var(--slate-400)">O</text>
+    <g transform="rotate(${deg} 50 50)">
+      <polygon points="50,20 45,52 50,46 55,52" fill="var(--gold)"/>
+      <circle cx="50" cy="50" r="4" fill="var(--gold)"/>
+    </g>
+  </svg>`;
+}
+
+function fmtHour(iso){
+  const d = new Date(iso);
+  return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDay(iso, idx){
+  if(idx===0) return "Hoje";
+  const d = new Date(iso+"T12:00:00");
+  return d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
+}
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clockTime').textContent = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('clockDate').textContent = now.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'long'});
+}
+updateClock();
+setInterval(updateClock, 1000*30);
+
+async function loadWeather(stationKey){
+  currentStation = stationKey;
+  const st = STATIONS[stationKey];
+  const requestId = ++weatherRequestId;
+  const statusMsg = document.getElementById('statusMsg');
+  const errorMsg = document.getElementById('errorMsg');
+  const errorDetail = document.getElementById('errorDetail');
+  const content = document.getElementById('content');
+
+  if(weatherController) weatherController.abort();
+  const controller = new AbortController();
+  weatherController = controller;
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  statusMsg.textContent = hasWeatherData ? "Atualizando os dados…" : "Sincronizando com a estação…";
+  statusMsg.classList.add('show');
+  errorMsg.classList.remove('show');
+  if(!hasWeatherData) content.classList.remove('show');
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lon}` +
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,cloud_cover` +
+    `&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,relative_humidity_2m,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max` +
+    `&timezone=America%2FSao_Paulo&forecast_days=15`;
+
+  try{
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if(!res.ok) throw new Error(`Open-Meteo respondeu com HTTP ${res.status}`);
+    const data = await res.json();
+    if(requestId !== weatherRequestId) return;
+    if(!data.current || !data.hourly || !data.daily) throw new Error('Resposta incompleta da API');
+
+    render(data, st);
+    try{ localStorage.setItem(`weather-cache-${stationKey}`, JSON.stringify({ data, savedAt: Date.now(), station: st })); }catch(cacheError){ console.warn('Cache indisponível:', cacheError); }
+    hasWeatherData = true;
+    statusMsg.classList.remove('show');
+    errorMsg.classList.remove('show');
+    content.classList.add('show');
+    document.getElementById('lastUpdate').textContent =
+      "Última leitura: " + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + " — " + st.name;
+  }catch(e){
+    if(requestId !== weatherRequestId) return;
+    console.error('Previsão:', e);
+    statusMsg.classList.remove('show');
+    errorMsg.classList.add('show');
+    errorDetail.textContent = e.name === 'AbortError'
+      ? 'A resposta demorou mais de 10 segundos. Tente novamente.'
+      : 'Verifique a ligação e tente novamente. A previsão é obtida em tempo real.';
+
+    try{
+      const cached = JSON.parse(localStorage.getItem(`weather-cache-${stationKey}`) || 'null');
+      if(cached && cached.data){
+        render(cached.data, st);
+        hasWeatherData = true;
+        content.classList.add('show');
+        document.getElementById('lastUpdate').textContent =
+          "Última leitura guardada: " + new Date(cached.savedAt).toLocaleString('pt-BR') + " — " + st.name;
+      }
+    }catch(cacheError){ console.warn('Cache inválido:', cacheError); }
+  }finally{
+    clearTimeout(timeoutId);
+  }
+}
+
+function render(data, st){
+  lastData = data;
+  const nowIdx = data.hourly.time.findIndex(t => new Date(t) >= new Date());
+  lastData.__nowIdx = nowIdx;
+  lastData.__current = data.current;
+
+  // 15 day strip
+  const numDays = Math.min(15, data.daily.time.length);
+  const daysEl = document.getElementById('daysGrid');
+  daysEl.innerHTML = '';
+  for(let i=0; i<numDays; i++){
+    const w = WMO[data.daily.weather_code[i]] || {cat:'cloudy'};
+    const col = document.createElement('div');
+    col.className = 'day-col' + (i===0 ? ' active' : '') + (i>=7 ? ' low-confidence' : '');
+    col.dataset.dayIndex = i;
+    const dObj = new Date(data.daily.time[i] + "T12:00:00");
+    col.innerHTML = `
+      <div class="day-name">${fmtDay(data.daily.time[i], i)}</div>
+      <div class="day-date">${dObj.toLocaleDateString('pt-BR',{day:'2-digit', month:'2-digit'})}</div>
+      ${iconSvg(w.cat, 28).replace('<svg','<svg class="day-icon"')}
+      <div class="day-temps"><span class="max">${Math.round(data.daily.temperature_2m_max[i])}°</span> <span class="min">${Math.round(data.daily.temperature_2m_min[i])}°</span></div>
+      <div class="day-rain">${data.daily.precipitation_sum[i] > 0.1 ? data.daily.precipitation_sum[i].toFixed(0)+'mm' : '—'}</div>
+    `;
+    daysEl.appendChild(col);
+  }
+
+  renderAlerts(data);
+  renderRiverRisk(data, st);
+  selectDay(0);
+}
+
+/* ---------------- ALERTS (storm, hail, wind, rain, drought) ---------------- */
+function computeAlerts(data){
+  const alerts = [];
+  const d = data.daily;
+  const numDays = Math.min(15, d.time.length);
+
+  for(let i=0; i<numDays; i++){
+    const dayLabel = fmtDay(d.time[i], i);
+    const code = d.weather_code[i];
+    const gust = d.wind_gusts_10m_max ? d.wind_gusts_10m_max[i] : 0;
+    const rain = d.precipitation_sum[i];
+
+    // Granizo — sempre relevante, severidade sobe com o vento associado
+    if(code === 96 || code === 99){
+      const severe = gust >= 80;
+      alerts.push({ day:i, dayLabel, type:'hail',
+        label: severe ? 'Granizo com vento forte' : 'Tempestade com granizo',
+        color: severe ? 'var(--sev-red)' : 'var(--alert-hail)', icon:'hail' });
+    } else if(code === 95){
+      alerts.push({ day:i, dayLabel, type:'storm', label:'Tempestade com raios', color:'var(--sev-yellow)', icon:'storm' });
+    }
+
+    // Vento — critérios aproximados do INMET (amarelo/laranja/vermelho)
+    if(gust >= 100){
+      alerts.push({ day:i, dayLabel, type:'tornado', label:'Vendaval severo — risco de danos', color:'var(--sev-red)', icon:'tornado' });
+    } else if(gust >= 80){
+      alerts.push({ day:i, dayLabel, type:'tornado', label:'Vendaval — vento muito forte', color:'var(--sev-orange)', icon:'wind' });
+    } else if(gust >= 60){
+      alerts.push({ day:i, dayLabel, type:'wind', label:'Vento forte', color:'var(--sev-yellow)', icon:'wind' });
+    }
+
+    // Chuva — critérios aproximados do INMET (mm acumulados em 24h)
+    if(rain >= 100){
+      alerts.push({ day:i, dayLabel, type:'rain', label:'Chuva muito forte — risco de alagamentos (' + rain.toFixed(0) + 'mm)', color:'var(--sev-red)', icon:'rain' });
+    } else if(rain >= 50){
+      alerts.push({ day:i, dayLabel, type:'rain', label:'Chuva forte — ' + rain.toFixed(0) + 'mm', color:'var(--sev-orange)', icon:'rain' });
+    } else if(rain >= 20){
+      alerts.push({ day:i, dayLabel, type:'rain', label:'Chuva moderada — ' + rain.toFixed(0) + 'mm', color:'var(--sev-yellow)', icon:'rain' });
+    }
+  }
+
+  // Estiagem — média muito abaixo do esperado para a região (~1mm/dia como piso)
+  const totalPeriod = d.precipitation_sum.slice(0, numDays).reduce((a,b)=>a+b,0);
+  const droughtThreshold = numDays * 1.0;
+  if(totalPeriod < droughtThreshold){
+    alerts.push({ day:0, dayLabel: numDays + ' dias', type:'drought', label:'Baixa chuva no período — risco de estiagem', color:'var(--alert-drought)', icon:'drought' });
+  }
+  return alerts;
+}
+
+/* ---------------- RIO DOS SINOS — indicador baseado em chuva prevista ---------------- */
+function renderRiverRisk(data, st){
+  const days3 = data.daily.precipitation_sum.slice(0, 3).reduce((a,b)=>a+b, 0);
+  const pill = document.getElementById('riverPill');
+  const pillText = document.getElementById('riverPillText');
+  const sub = document.getElementById('riverSub');
+
+  let level, color, text;
+  if(days3 < 20){
+    level = 'normal'; color = 'var(--rain-blue)'; text = 'Normal';
+  } else if(days3 < 60){
+    level = 'atencao'; color = 'var(--sev-yellow)'; text = 'Atenção';
+  } else if(days3 < 120){
+    level = 'alerta'; color = 'var(--sev-orange)'; text = 'Alerta';
+  } else {
+    level = 'critico'; color = 'var(--sev-red)'; text = 'Risco elevado de cheia';
+  }
+
+  pill.style.setProperty('--pill-color', color);
+  pillText.textContent = text;
+  sub.innerHTML = `Estimativa a partir da chuva prevista para <b>${st.name}</b> nos próximos 3 dias: <b>${days3.toFixed(0)}mm</b> acumulados. Isso indica o volume de água que pode escoar para a bacia — <b>não é a leitura da régua do rio</b>. Para o nível medido de fato, use os links abaixo.`;
+}
+
+function alertIcon(type){
+  const icons = {
+    storm:   `<svg viewBox="0 0 24 24" class="chip-icon"><polygon points="13,2 4,14 11,14 9,22 20,9 13,9" fill="currentColor"/></svg>`,
+    rain:    `<svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 16a4 4 0 0 1 .5-8 5 5 0 0 1 9.6-1.5A4.5 4.5 0 0 1 17 16H7z"/><line x1="9" y1="19" x2="8" y2="22"/><line x1="14" y1="19" x2="13" y2="22"/></path></svg>`,
+    tornado: `<svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h18"/><path d="M5 10h14"/><path d="M8 15h9"/><path d="M11 20h4"/></svg>`,
+    wind:    `<svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 14h15a3 3 0 1 1-3 3"/></svg>`,
+    drought: `<svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>`,
+    hail:    `<svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 14a4 4 0 0 1 .5-8 5 5 0 0 1 9.6-1.5A4.5 4.5 0 0 1 16 14H6z"/><circle cx="8" cy="19" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="20.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="17" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>`
+  };
+  return icons[type] || icons.rain;
+}
+
+function renderAlerts(data){
+  const row = document.getElementById('alertsRow');
+  const alerts = computeAlerts(data);
+  row.innerHTML = '';
+  if(alerts.length === 0){
+    row.innerHTML = `<div class="alert-chip" style="--chip-color: var(--slate-400);">
+      <svg viewBox="0 0 24 24" class="chip-icon" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="chip-label" style="color:var(--slate-400)">Sem alertas</span><span class="chip-day">próximos 7 dias</span>
+    </div>`;
+    return;
+  }
+  alerts.forEach(a=>{
+    const chip = document.createElement('div');
+    chip.className = 'alert-chip';
+    chip.style.setProperty('--chip-color', a.color);
+    chip.innerHTML = `${alertIcon(a.icon)}<span class="chip-label">${a.label}</span><span class="chip-day">${a.dayLabel}</span>`;
+    chip.addEventListener('click', ()=> selectDay(a.day));
+    row.appendChild(chip);
+  });
+}
+
+/* ---------------- DAY SELECTION (drives now-panel, gauge, wind, hourly) ---------------- */
+function selectDay(dayIdx){
+  if(!lastData) return;
+  selectedDay = dayIdx;
+  const data = lastData;
+  const nowIdx = data.__nowIdx;
+  const isToday = dayIdx === 0;
+
+  document.querySelectorAll('.day-col').forEach(c=>{
+    c.classList.toggle('active', Number(c.dataset.dayIndex) === dayIdx);
+  });
+
+  // representative hourly index for the selected day (midday) — used for humidity/pressure/wind on future days
+  const targetDate = data.daily.time[dayIdx];
+  const dayStartIdx = data.hourly.time.findIndex(t => t.startsWith(targetDate));
+  const middayIdx = dayStartIdx >= 0 ? dayStartIdx + 12 : nowIdx;
+
+  const dayLabelEl = document.getElementById('dayLabel');
+
+  if(isToday){
+    const cur = data.__current;
+    const wmo = WMO[cur.weather_code] || {desc:"—", cat:"cloudy"};
+    dayLabelEl.textContent = "Agora — condições atuais";
+    document.getElementById('nowIcon').outerHTML = iconSvg(wmo.cat, 76).replace('<svg', '<svg id="nowIcon" class="now-icon"');
+    document.getElementById('nowTemp').innerHTML = Math.round(cur.temperature_2m) + '<sup>°C</sup>';
+    document.getElementById('nowDesc').textContent = wmo.desc;
+    document.getElementById('nowFeels').textContent = "SENSAÇÃO " + Math.round(cur.apparent_temperature) + "°C";
+    document.getElementById('statHum').innerHTML = Math.round(cur.relative_humidity_2m) + ' <span class="unit">%</span>';
+    document.getElementById('statPress').innerHTML = Math.round(cur.pressure_msl) + ' <span class="unit">hPa</span>';
+    document.getElementById('statCloud').innerHTML = Math.round(cur.cloud_cover) + ' <span class="unit">%</span>';
+    document.getElementById('statVis').textContent = cur.cloud_cover < 25 ? "Aberto" : cur.cloud_cover < 70 ? "Parcial" : "Fechado";
+    document.getElementById('windSpeed').innerHTML = Math.round(cur.wind_speed_10m) + ' <span class="unit">km/h</span>';
+    document.getElementById('windGust').innerHTML = Math.round(cur.wind_gusts_10m) + ' <span class="unit">km/h</span>';
+    document.getElementById('compassSvg').outerHTML = windCompass(cur.wind_direction_10m, cur.wind_speed_10m).replace('<svg', '<svg id="compassSvg" class="compass"');
+  } else {
+    const w = WMO[data.daily.weather_code[dayIdx]] || {desc:"—", cat:"cloudy"};
+    const dObj = new Date(targetDate + "T12:00:00");
+    dayLabelEl.textContent = "Previsão — " + dObj.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'long'});
+    document.getElementById('nowIcon').outerHTML = iconSvg(w.cat, 76).replace('<svg', '<svg id="nowIcon" class="now-icon"');
+    document.getElementById('nowTemp').innerHTML = Math.round(data.daily.temperature_2m_max[dayIdx]) + '<sup>°C</sup>';
+    document.getElementById('nowDesc').textContent = w.desc;
+    document.getElementById('nowFeels').textContent =
+      "MÍNIMA " + Math.round(data.daily.temperature_2m_min[dayIdx]) + "°C · SENS. MÁX " + Math.round(data.daily.apparent_temperature_max[dayIdx]) + "°C";
+
+    const h = data.hourly;
+    document.getElementById('statHum').innerHTML = Math.round(h.relative_humidity_2m[middayIdx]) + ' <span class="unit">%</span>';
+    document.getElementById('statPress').innerHTML = Math.round(h.pressure_msl[middayIdx]) + ' <span class="unit">hPa</span>';
+    document.getElementById('statCloud').innerHTML = Math.round(h.cloud_cover[middayIdx]) + ' <span class="unit">%</span>';
+    document.getElementById('statVis').textContent = h.cloud_cover[middayIdx] < 25 ? "Aberto" : h.cloud_cover[middayIdx] < 70 ? "Parcial" : "Fechado";
+    document.getElementById('windSpeed').innerHTML = Math.round(h.wind_speed_10m[middayIdx]) + ' <span class="unit">km/h</span>';
+    document.getElementById('windGust').innerHTML = Math.round(data.daily.wind_gusts_10m_max[dayIdx]) + ' <span class="unit">km/h</span>';
+    document.getElementById('compassSvg').outerHTML = windCompass(h.wind_direction_10m[middayIdx], h.wind_speed_10m[middayIdx]).replace('<svg', '<svg id="compassSvg" class="compass"');
+  }
+
+  // rain gauge — follows the selected day
+  const rainDay = data.daily.precipitation_sum[dayIdx] || 0;
+  const gaugePct = Math.min((rainDay/40)*100, 100);
+  document.getElementById('gaugeFill').style.height = gaugePct + "%";
+  document.getElementById('rainToday').innerHTML = rainDay.toFixed(1) + '<span class="u">mm</span>';
+  document.getElementById('gaugeTitle').textContent = "Chuva acumulada — " + (isToday ? "hoje" : fmtDay(targetDate, dayIdx));
+  const probDay = data.daily.precipitation_probability_max[dayIdx] ?? 0;
+  document.getElementById('rainNext').textContent =
+    isToday ? "Prob. na próxima hora: " + (data.hourly.precipitation_probability[nowIdx] ?? 0) + "%"
+            : "Prob. máxima no dia: " + probDay + "%";
+  document.getElementById('probFill').style.width = probDay + "%";
+
+  renderHourlyStrip(dayIdx);
+}
+
+function renderHourlyStrip(dayIdx){
+  const data = lastData;
+  const nowIdx = data.__nowIdx;
+  const isToday = dayIdx === 0;
+
+  const titleEl = document.getElementById('hourlyTitle');
+  const hourlyEl = document.getElementById('hourlyScroll');
+  hourlyEl.innerHTML = '';
+
+  let startIdx, endIdx;
+  if(isToday){
+    startIdx = nowIdx;
+    endIdx = Math.min(nowIdx + 24, data.hourly.time.length);
+    titleEl.textContent = "Próximas 24 horas";
+  } else {
+    const targetDate = data.daily.time[dayIdx];
+    startIdx = data.hourly.time.findIndex(t => t.startsWith(targetDate));
+    endIdx = startIdx >= 0 ? startIdx + 24 : startIdx;
+    const d = new Date(targetDate + "T12:00:00");
+    titleEl.textContent = "Hora a hora — " + d.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'long'});
+  }
+
+  if(startIdx < 0){
+    hourlyEl.innerHTML = '<div class="hour-time" style="padding:10px;">Sem dados horários para este dia.</div>';
+    return;
+  }
+
+  for(let i=startIdx; i<endIdx && i<data.hourly.time.length; i++){
+    const w = WMO[data.hourly.weather_code[i]] || {cat:'cloudy'};
+    const precip = data.hourly.precipitation[i];
+    const col = document.createElement('div');
+    col.className = 'hour-col' + (isToday && i===nowIdx ? ' now' : '');
+    col.innerHTML = `
+      <div class="hour-time">${isToday && i===nowIdx ? 'Agora' : fmtHour(data.hourly.time[i])}</div>
+      ${iconSvg(w.cat, 26).replace('<svg','<svg class="hour-icon"')}
+      <div class="hour-precip">${precip>0.05 ? precip.toFixed(1)+'mm' : ''}</div>
+      <div class="hour-temp">${Math.round(data.hourly.temperature_2m[i])}°</div>
+    `;
+    hourlyEl.appendChild(col);
+  }
+}
+
+document.getElementById('daysGrid').addEventListener('click', (e)=>{
+  const col = e.target.closest('.day-col');
+  if(!col) return;
+  selectDay(Number(col.dataset.dayIndex));
+});
+
+document.getElementById('stationSelect').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.station-btn');
+  if(!btn) return;
+  document.querySelectorAll('.station-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadWeather(btn.dataset.station);
+});
+
+document.getElementById('refreshBtn').addEventListener('click', (e)=>{
+  const btn = e.currentTarget;
+  btn.classList.add('spinning');
+  loadWeather(currentStation).finally(()=> setTimeout(()=>btn.classList.remove('spinning'), 500));
+});
+document.getElementById('retryBtn').addEventListener('click', ()=> loadWeather(currentStation));
+
+/* ---------------- LEITURAS REAIS DO RIO (feed público Nível Guaíba — SGB/CPRM · ANA) ---------------- */
+function riverStatusColor(status){
+  if(status === 'normal') return 'var(--rain-blue)';
+  if(status === 'alerta') return 'var(--sev-orange)';
+  if(status === 'alagado') return 'var(--sev-red)';
+  return 'var(--slate-400)';
+}
+
+function renderRiverStation(elId, item, label){
+  const box = document.getElementById(elId);
+  if(!box) return;
+  if(!item){
+    box.innerHTML = `<div class="river-station-label">${label}</div><div class="river-station-empty">sem leitura recente no feed</div>`;
+    return;
+  }
+  const status = (item.tags || []).find(t => ['normal','alerta','alagado'].includes(t)) || '—';
+  const m = item.title.match(/([\d,]+)\s*m/);
+  const level = m ? m[1] + ' m' : '—';
+  const time = new Date(item.date_published).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  box.innerHTML = `
+    <div class="river-station-label">${label}</div>
+    <div class="river-station-level">${level}</div>
+    <div class="river-station-status" style="color:${riverStatusColor(status)}">${status.charAt(0).toUpperCase()+status.slice(1)}</div>
+    <div class="river-station-time">atualizado ${time}</div>
+  `;
+}
+
+function drawRiverSparkline(){
+  const wrap = document.getElementById('riverSparkline');
+  const rangeEl = document.getElementById('riverSparkRange');
+  if(!wrap || riverHistory.length < 2){
+    if(wrap) wrap.innerHTML = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--slate-400);padding:6px 0;">Acompanhando ao longo desta sessão — volte em alguns minutos para ver a linha.</div>`;
+    return;
+  }
+  const w = 300, h = 40;
+  const levels = riverHistory.map(p=>p.level);
+  const min = Math.min(...levels), max = Math.max(...levels);
+  const range = (max - min) || 0.1;
+  const pts = riverHistory.map((p,i)=>{
+    const x = (i/(riverHistory.length-1)) * w;
+    const y = h - ((p.level - min)/range) * (h-6) - 3;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:40px;">
+    <polyline points="${pts}" fill="none" stroke="var(--rain-blue)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+  if(rangeEl) rangeEl.textContent = min.toFixed(2) + 'm – ' + max.toFixed(2) + 'm nesta sessão';
+}
+
+async function fetchRiverLevels(){
+  try{
+    const res = await fetch('https://nivelguaiba.com.br/feed');
+    if(!res.ok) throw new Error('feed http error');
+    const feed = await res.json();
+    const items = feed.items || [];
+    const taquara = items.find(it => (it.tags||[]).includes('taquara'));
+    const saoLeopoldo = items.find(it => (it.tags||[]).includes('saoleopoldo'));
+
+    renderRiverStation('riverStation_taquara', taquara, 'Taquara (a montante)');
+    renderRiverStation('riverStation_saoleopoldo', saoLeopoldo, 'São Leopoldo (a jusante)');
+
+    if(saoLeopoldo){
+      const m = saoLeopoldo.title.match(/([\d,]+)\s*m/);
+      if(m){
+        const level = parseFloat(m[1].replace(',', '.'));
+        const t = new Date(saoLeopoldo.date_published).getTime();
+        if(!riverHistory.length || riverHistory[riverHistory.length-1].t !== t){
+          riverHistory.push({ t, level });
+          if(riverHistory.length > 80) riverHistory.shift();
+        }
+      }
+    }
+    drawRiverSparkline();
+
+    document.getElementById('riverLiveWrap').classList.add('show');
+    document.getElementById('riverLiveError').classList.remove('show');
+  }catch(e){
+    document.getElementById('riverLiveWrap').classList.remove('show');
+    document.getElementById('riverLiveError').classList.add('show');
+    console.error('Nível Guaíba feed:', e);
+  }
+}
+
+loadWeather('nh');
+fetchRiverLevels();
+refreshTimer = setInterval(()=> loadWeather(currentStation), 15*60*1000);
+setInterval(fetchRiverLevels, 15*60*1000);
+</script>
+</body>
+</html>
