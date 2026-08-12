@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 import streamlit as st
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Estação do Vale — Novo Hamburgo", page_icon="🌦️", layout="wide")
 
@@ -66,6 +67,42 @@ def get_weather(name: str):
     if not data.get("current") or not data.get("hourly") or not data.get("daily"):
         raise ValueError("A resposta da previsão veio incompleta.")
     return data
+
+@st.cache_data(ttl=900, show_spinner=False)
+def get_river_history(days=2):
+    response = requests.get("https://nivelguaiba.com.br/saoleopoldo.json", params={"_": int(datetime.now().timestamp())}, timeout=10)
+    response.raise_for_status()
+    raw = response.json()
+    frame = pd.DataFrame({"Data/hora": pd.to_datetime(list(raw.keys())), "Nível (m)": list(raw.values())})
+    cutoff = pd.Timestamp.now() - pd.Timedelta(days=days)
+    return frame[frame["Data/hora"] >= cutoff].sort_values("Data/hora")
+
+@st.cache_data(ttl=900, show_spinner=False)
+def get_basin_forecast():
+    points = {
+        "Taquara": (-29.6500, -50.7800),
+        "Campo Bom": (-29.6800, -51.0500),
+        "São Leopoldo": (-29.7600, -51.1500),
+        "Novo Hamburgo": (-29.6783, -51.1308),
+    }
+    rows = []
+    for place, (lat, lon) in points.items():
+        params = {
+            "latitude": lat, "longitude": lon, "timezone": "America/Sao_Paulo", "forecast_days": 7,
+            "daily": "precipitation_sum,precipitation_probability_max,weather_code,wind_gusts_10m_max",
+        }
+        response = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()["daily"]
+        for i, day in enumerate(payload["time"]):
+            rows.append({
+                "Data": pd.to_datetime(day), "Ponto": place,
+                "Chuva prevista (mm)": payload["precipitation_sum"][i],
+                "Prob. chuva (%)": payload["precipitation_probability_max"][i],
+                "Código": payload["weather_code"][i],
+                "Rajada máxima (km/h)": payload["wind_gusts_10m_max"][i],
+            })
+    return pd.DataFrame(rows)
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_river_feed():
@@ -146,6 +183,43 @@ def render_river(data):
     st.dataframe(thresholds, use_container_width=True, hide_index=True)
     st.caption("As cotas são referências divulgadas em boletins anteriores e podem ser revistas pela Defesa Civil. As leituras disponíveis são de Taquara e São Leopoldo; Novo Hamburgo não tem, neste painel, sensor público automatizado.")
     st.markdown("[Gráfico completo — Nível Guaíba](https://nivelguaiba.com.br/saoleopoldo) · [Níveis dos rios — ClimaRS](https://clima.rs.gov.br/) · [SACE — SGB/CPRM](https://www.sgb.gov.br/sace/) · [Defesa Civil NH](https://www.novohamburgo.rs.gov.br/)")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_basin_analysis(data):
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.subheader("Histórico recente e previsão da bacia")
+    st.caption("O histórico abaixo usa a série pública da estação Ponte 25 de Julho, em São Leopoldo. A previsão da bacia é uma agregação meteorológica de quatro pontos representativos; ela não é uma previsão hidrológica do nível futuro do rio.")
+    try:
+        history = get_river_history(2)
+        if history.empty:
+            st.info("Ainda não há histórico recente disponível para o gráfico.")
+        else:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=history["Data/hora"], y=history["Nível (m)"], mode="lines+markers", name="São Leopoldo", line={"color":"#5b9bc4", "width":3}, marker={"size":4}))
+            fig.add_hline(y=4.50, line_dash="dash", line_color="#e0475c", annotation_text="Cota de inundação: 4,50 m")
+            fig.add_hline(y=3.50, line_dash="dot", line_color="#e8c33d", annotation_text="Atenção: 3,50 m")
+            fig.update_layout(height=360, margin={"l":10,"r":10,"t":20,"b":10}, paper_bgcolor="#152634", plot_bgcolor="#152634", font={"color":"#eef1ee"}, xaxis_title="Data/hora", yaxis_title="Nível (m)")
+            st.plotly_chart(fig, use_container_width=True, theme=None)
+            latest = history.iloc[-1]
+            st.caption(f"Última leitura pública: **{latest['Nível (m)']:.2f} m** em {latest['Data/hora'].strftime('%d/%m/%Y %H:%M')}. Fonte: [Nível Guaíba / São Leopoldo](https://nivelguaiba.com.br/saoleopoldo).")
+    except Exception as error:
+        st.warning(f"Não foi possível carregar o histórico público agora: {error}")
+
+    try:
+        basin = get_basin_forecast()
+        daily = basin.groupby("Data", as_index=False).agg({"Chuva prevista (mm)":"mean", "Prob. chuva (%)":"max", "Rajada máxima (km/h)":"max"})
+        daily["Chuva prevista (mm)"] = daily["Chuva prevista (mm)"].round(1)
+        st.markdown("#### Previsão meteorológica da bacia — próximos 7 dias")
+        forecast_fig = go.Figure()
+        forecast_fig.add_trace(go.Bar(x=daily["Data"], y=daily["Chuva prevista (mm)"], name="Chuva média nos pontos", marker_color="#5b9bc4"))
+        forecast_fig.add_trace(go.Scatter(x=daily["Data"], y=daily["Prob. chuva (%)"], name="Maior probabilidade (%)", mode="lines+markers", yaxis="y2", line={"color":"#e8a33d", "width":2}))
+        forecast_fig.update_layout(height=360, margin={"l":10,"r":10,"t":20,"b":10}, paper_bgcolor="#152634", plot_bgcolor="#152634", font={"color":"#eef1ee"}, xaxis_title="Data", yaxis={"title":"Chuva média (mm)"}, yaxis2={"title":"Probabilidade (%)", "overlaying":"y", "side":"right", "range":[0,100]})
+        st.plotly_chart(forecast_fig, use_container_width=True, theme=None)
+        st.dataframe(daily.rename(columns={"Chuva prevista (mm)":"Chuva média (mm)", "Prob. chuva (%)":"Maior prob. chuva (%)"}), use_container_width=True, hide_index=True)
+        total = float(daily["Chuva prevista (mm)"].sum())
+        st.info(f"A média dos quatro pontos indica aproximadamente **{total:.1f} mm** de chuva na bacia nos próximos sete dias. Use este indicador junto com o nível observado e os alertas oficiais; chuva prevista não equivale automaticamente a cheia.")
+    except Exception as error:
+        st.warning(f"Não foi possível carregar a previsão agregada da bacia agora: {error}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_official_sources():
@@ -242,6 +316,7 @@ st.dataframe(days, use_container_width=True, hide_index=True)
 st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#5b9bc4")
 
 render_river(data)
+render_basin_analysis(data)
 render_official_sources()
 render_enso()
 
