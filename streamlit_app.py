@@ -148,6 +148,21 @@ def render_river(data):
     st.markdown("[Gráfico completo — Nível Guaíba](https://nivelguaiba.com.br/saoleopoldo) · [Níveis dos rios — ClimaRS](https://clima.rs.gov.br/) · [SACE — SGB/CPRM](https://www.sgb.gov.br/sace/) · [Defesa Civil NH](https://www.novohamburgo.rs.gov.br/)")
     st.markdown('</div>', unsafe_allow_html=True)
 
+def render_official_sources():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.subheader("Fontes oficiais de monitoramento")
+    st.caption("As leituras abaixo devem ser conferidas diretamente nas plataformas oficiais durante eventos críticos. O painel reúne os acessos públicos para reduzir a dependência de uma única fonte.")
+    sources = pd.DataFrame([
+        ["Defesa Civil RS", "Rede Hidrometeorológica", "Estações hidrológicas e meteorológicas do Estado; atualização de missão crítica", "https://redehidrometeorologica.defesacivil.rs.gov.br/"],
+        ["ClimaRS", "Rio dos Sinos — São Leopoldo", "Nível, tendência e estado da estação no painel estadual", "https://clima.rs.gov.br/"],
+        ["ANA", "Hidroweb / Hidro-Telemetria", "Dados nacionais de níveis, vazões e chuva das estações da RHN", "https://www.snirh.gov.br/hidrotelemetria/Estacoes.aspx"],
+        ["SGB/CPRM", "SACE — bacias monitoradas", "Sistemas de alertas hidrológicos e referências de bacias", "https://www.sgb.gov.br/sace/"],
+        ["Defesa Civil NH", "Alertas municipais", "Orientações locais, alertas e canais da Defesa Civil de Novo Hamburgo", "https://www.novohamburgo.rs.gov.br/"]
+    ], columns=["Órgão", "Fonte", "O que consultar", "Link"])
+    st.dataframe(sources, use_container_width=True, hide_index=True, column_config={"Link": st.column_config.LinkColumn("Abrir fonte")})
+    st.info("A Rede Hidrometeorológica da Defesa Civil RS é a fonte estadual prioritária para estações novas. Se uma leitura não aparecer aqui, use os links oficiais acima; isso pode indicar manutenção, atraso de transmissão ou diferença entre estações.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 def render_enso():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     left, right = st.columns([1.4, 1])
@@ -227,6 +242,7 @@ st.dataframe(days, use_container_width=True, hide_index=True)
 st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#5b9bc4")
 
 render_river(data)
+render_official_sources()
 render_enso()
 
 st.markdown('<footer>Sobre a precisão: este boletim usa o modelo aberto Open-Meteo. Para eventos de chuva forte, vento ou frente fria, confira também os boletins oficiais da Defesa Civil, INMET, ClimaRS e MetSul.</footer>', unsafe_allow_html=True)
