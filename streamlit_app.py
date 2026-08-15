@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -15,6 +16,8 @@ STATIONS = {
 }
 CACHE_DIR = Path(".weather_cache")
 CACHE_DIR.mkdir(exist_ok=True)
+LOCAL_TZ = ZoneInfo("America/Sao_Paulo")
+LOCAL_TZ_LABEL = "Horário de Brasília"
 
 st.markdown("""
 <style>
@@ -70,11 +73,11 @@ def get_weather(name: str):
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_river_history(days=2):
-    response = requests.get("https://nivelguaiba.com.br/saoleopoldo.json", params={"_": int(datetime.now().timestamp())}, timeout=10)
+    response = requests.get("https://nivelguaiba.com.br/saoleopoldo.json", params={"_": int(datetime.now(LOCAL_TZ).timestamp())}, timeout=10)
     response.raise_for_status()
     raw = response.json()
     frame = pd.DataFrame({"Data/hora": pd.to_datetime(list(raw.keys())), "Nível (m)": list(raw.values())})
-    cutoff = pd.Timestamp.now() - pd.Timedelta(days=days)
+    cutoff = pd.Timestamp.now(tz=LOCAL_TZ).tz_localize(None) - pd.Timedelta(days=days)
     return frame[frame["Data/hora"] >= cutoff].sort_values("Data/hora")
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -276,7 +279,8 @@ except Exception as error:
     source_note = "Últimos dados guardados localmente"
     st.warning("A API não respondeu agora; a mostrar a última previsão guardada.")
 
-st.success(f"{source_note} · atualizado {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+now_local = datetime.now(LOCAL_TZ)
+st.success(f"{source_note} · atualizado {now_local.strftime('%d/%m/%Y %H:%M')} ({LOCAL_TZ_LABEL})")
 current, daily, hourly = data["current"], data["daily"], data["hourly"]
 condition = WMO.get(current.get("weather_code", 0), "Condição desconhecida")
 
@@ -304,13 +308,15 @@ with b:
     card("Rajada máxima prevista", f"{max(daily['wind_gusts_10m_max']):.0f} km/h", "nos próximos 15 dias")
 
 st.subheader("Próximas 24 horas")
-now = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
+st.caption(f"Horários apresentados em {LOCAL_TZ_LABEL} (UTC−03:00).")
+now = pd.Timestamp.now(tz=LOCAL_TZ).tz_localize(None)
 hour_df = pd.DataFrame({"Hora": pd.to_datetime(hourly["time"]), "Temperatura": hourly["temperature_2m"], "Chuva (mm)": hourly["precipitation"], "Prob. chuva (%)": hourly["precipitation_probability"], "Condição": [WMO.get(c, "—") for c in hourly["weather_code"]]})
 hour_df = hour_df[hour_df["Hora"] >= now].head(24).copy()
 hour_df["Hora"] = hour_df["Hora"].dt.strftime("%H:%M")
 st.dataframe(hour_df, use_container_width=True, hide_index=True)
 
 st.subheader("Previsão de 15 dias")
+st.caption(f"Datas e horários da previsão em {LOCAL_TZ_LABEL} (UTC−03:00).")
 days = pd.DataFrame({"Data": pd.to_datetime(daily["time"]).strftime("%d/%m"), "Condição": [WMO.get(c, "—") for c in daily["weather_code"]], "Máxima (°C)": [round(x, 1) for x in daily["temperature_2m_max"]], "Mínima (°C)": [round(x, 1) for x in daily["temperature_2m_min"]], "Chuva (mm)": [round(x, 1) for x in daily["precipitation_sum"]], "Prob. chuva (%)": daily["precipitation_probability_max"]})
 st.dataframe(days, use_container_width=True, hide_index=True)
 st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#5b9bc4")
