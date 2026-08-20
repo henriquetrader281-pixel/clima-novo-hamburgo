@@ -1,10 +1,12 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 import streamlit as st
 import plotly.graph_objects as go
 
@@ -289,23 +291,56 @@ def render_official_sources():
     st.info("A Rede Hidrometeorológica da Defesa Civil RS é a fonte estadual prioritária para estações novas. Se uma leitura não aparecer aqui, use os links oficiais acima; isso pode indicar manutenção, atraso de transmissão ou diferença entre estações.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+@st.cache_data(ttl=21600, show_spinner=False)
+def get_enso_probabilities():
+    url = "https://cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/"
+    response = requests.get(url, timeout=15, headers={"User-Agent": "Estacao-do-Vale/1.0"})
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    table = soup.find("table", id="probabilities-table") or soup.find("table", class_=re.compile("probabilities"))
+    if not table:
+        raise ValueError("A tabela de probabilidades da NOAA não foi encontrada.")
+    rows = []
+    for row in table.find_all("tr"):
+        cells = [cell.get_text(" ", strip=True) for cell in row.find_all(["th", "td"])]
+        if len(cells) == 4 and cells[0] != "Season":
+            rows.append({"Trimestre": cells[0], "La Niña (%)": int(cells[1]), "Neutral (%)": int(cells[2]), "El Niño (%)": int(cells[3])})
+    if not rows:
+        raise ValueError("A tabela da NOAA não contém linhas de probabilidade válidas.")
+    text = soup.get_text(" ", strip=True)
+    issued_match = re.search(r"Issued\\s+([A-Za-z]+\\s+\\d{4})", text)
+    issued = issued_match.group(1) if issued_match else "data não informada"
+    return pd.DataFrame(rows), issued
+
 def render_enso():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    left, right = st.columns([1.4, 1])
-    with left:
-        st.subheader("El Niño — Monitor ENOS 2026/2027")
-        st.write("Formação confirmada pela NOAA em 11 de junho de 2026 — águas do Pacífico Equatorial com anomalias acima de 2°C perto da costa da América do Sul, padrão clássico do fenómeno.")
-        st.markdown('<span class="river-pill">El Niño ativo</span>', unsafe_allow_html=True)
-        st.markdown("### 63% · SUPER EL NIÑO")
-    with right:
-        st.markdown('<div class="enso-stat"><span class="enso-label">Persistência</span><span class="enso-value">&gt;90% de chance ativo até início de 2027</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="enso-stat"><span class="enso-label">Anomalia TSM (Pacífico)</span><span class="enso-value">+1,8°C a +2,5°C</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="enso-stat"><span class="enso-label">Boletim oficial</span><span class="enso-value">INMET · INPE · ANA · CEMADEN · SGB — 29/jun/2026</span></div>', unsafe_allow_html=True)
+    try:
+        enso_df, issued = get_enso_probabilities()
+        current_row = enso_df.iloc[0]
+        current_prob = int(current_row["El Niño (%)"])
+        st.subheader("El Niño — Monitor ENOS atualizado pela NOAA")
+        st.write("As probabilidades abaixo são consultadas diretamente no outlook oficial do Climate Prediction Center (NOAA/CPC) e atualizadas automaticamente a cada seis horas.")
+        left, right = st.columns([1.4, 1])
+        with left:
+            st.markdown('<span class="river-pill">El Niño ativo</span>', unsafe_allow_html=True)
+            st.markdown(f"### {current_prob}% · probabilidade NOAA")
+            st.caption(f"Trimestre mais próximo: **{current_row['Trimestre']}** · boletim emitido em **{issued}**.")
+        with right:
+            st.markdown('<div class="enso-stat"><span class="enso-label">Próximo trimestre</span><span class="enso-value">'+str(current_row["Trimestre"])+'</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="enso-stat"><span class="enso-label">El Niño</span><span class="enso-value">'+str(current_prob)+'%</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="enso-stat"><span class="enso-label">Neutral</span><span class="enso-value">'+str(int(current_row["Neutral (%)"]))+'%</span></div>', unsafe_allow_html=True)
+        st.markdown("#### Probabilidades por trimestre")
+        chart_df = enso_df.set_index("Trimestre")[["La Niña (%)", "Neutral (%)", "El Niño (%)"]]
+        st.bar_chart(chart_df, color=["#4f86b5", "#8da2b0", "#e0475c"])
+        st.dataframe(enso_df, use_container_width=True, hide_index=True)
+        st.caption("A probabilidade é do fenômeno ENSO por trimestre e não representa, sozinha, a probabilidade de chuva ou de cheia no Rio Grande do Sul.")
+    except Exception as error:
+        st.warning(f"A NOAA não respondeu agora; o indicador dinâmico não pôde ser atualizado: {error}")
+        st.info("Consulte o boletim oficial da NOAA/CPC diretamente até a próxima atualização.")
     a, b = st.columns(2)
-    with a: st.markdown('<div class="region-high"><b>Sul do Brasil (RS · SC · PR)</b> — chuvas acima da média e risco elevado de temporais, cheias e deslizamentos, mais intenso na primavera e verão.</div>', unsafe_allow_html=True)
-    with b: st.markdown('<div class="region-low"><b>Norte / Nordeste</b> — tendência de estiagem e chuva abaixo da média.</div>', unsafe_allow_html=True)
-    st.write("Anos de El Niño historicamente elevam o risco de cheias no Rio Grande do Sul. Por isso, vale acompanhar de perto o indicador do Rio dos Sinos ao longo da primavera e do verão.")
-    st.markdown("[Mapa por estado — Monitor El Niño Brasil](https://monitorelninobrasi.com.br/) · [NOAA/NCEI — ENSO](https://www.ncei.noaa.gov/access/monitoring/enso/) · [INMET](https://portal.inmet.gov.br/)")
+    with a: st.markdown('<div class="region-high"><b>Sul do Brasil (RS · SC · PR)</b> — o El Niño pode alterar os padrões de chuva e aumentar riscos de temporais e cheias, mas os impactos locais dependem da previsão e dos alertas atuais.</div>', unsafe_allow_html=True)
+    with b: st.markdown('<div class="region-low"><b>Interpretação</b> — este indicador climático não substitui os avisos da Defesa Civil, INMET ou ClimaRS.</div>', unsafe_allow_html=True)
+    st.markdown("[Probabilidades oficiais NOAA/CPC](https://cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/) · [Boletim ENSO](https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml) · [NOAA/NCEI — ENSO](https://www.ncei.noaa.gov/access/monitoring/enso/) · [INMET](https://portal.inmet.gov.br/)")
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="caption-mono">ESTAÇÃO DO VALE · BOLETIM LOCAL</div>', unsafe_allow_html=True)
