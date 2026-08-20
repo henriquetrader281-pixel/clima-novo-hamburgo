@@ -108,6 +108,37 @@ def get_basin_forecast():
     return pd.DataFrame(rows)
 
 @st.cache_data(ttl=900, show_spinner=False)
+def get_regional_impact():
+    places = {
+        "Novo Hamburgo": (-29.6783, -51.1308, "Rio dos Sinos", 3.50, 4.50, 30, 60, 60),
+        "Porto Alegre": (-30.0346, -51.2177, "Guaíba", 2.10, 3.00, 40, 80, 70),
+    }
+    rows = []
+    for city, (lat, lon, river, river_attention, river_flood, rain_attention, rain_alert, wind_alert) in places.items():
+        params = {
+            "latitude": lat, "longitude": lon, "timezone": "America/Sao_Paulo", "forecast_days": 2,
+            "current": "precipitation,weather_code,wind_gusts_10m",
+            "daily": "precipitation_sum,precipitation_probability_max,weather_code,wind_gusts_10m_max",
+        }
+        response = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+        current = payload.get("current", {})
+        daily = payload.get("daily", {})
+        rain24 = float(sum((daily.get("precipitation_sum") or [0])[:1]))
+        max_rain = float(max(daily.get("precipitation_sum") or [0]))
+        max_wind = float(max(daily.get("wind_gusts_10m_max") or [0]))
+        code = int(current.get("weather_code", 0))
+        if max_wind >= wind_alert or max_rain >= rain_alert:
+            risk = "Alerta"
+        elif max_wind >= wind_alert * 0.8 or max_rain >= rain_attention:
+            risk = "Atenção"
+        else:
+            risk = "Normal"
+        rows.append({"Município": city, "Risco meteorológico": risk, "Chuva 24h (mm)": round(rain24, 1), "Maior chuva diária (mm)": round(max_rain, 1), "Rajada máxima (km/h)": round(max_wind, 1), "Rio monitorado": river, "Nível do rio": "Consultar fonte oficial", "Latitude": lat, "Longitude": lon, "Código": code})
+    return pd.DataFrame(rows)
+
+@st.cache_data(ttl=900, show_spinner=False)
 def get_river_feed():
     response = requests.get("https://nivelguaiba.com.br/feed", timeout=10)
     response.raise_for_status()
@@ -225,6 +256,24 @@ def render_basin_analysis(data):
         st.warning(f"Não foi possível carregar a previsão agregada da bacia agora: {error}")
     st.markdown('</div>', unsafe_allow_html=True)
 
+def render_regional_impact():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.subheader("Mapa regional de impacto — Novo Hamburgo e Porto Alegre")
+    st.caption("Indicador automático de apoio baseado na previsão meteorológica. Não substitui os alertas e mapas oficiais da Defesa Civil RS.")
+    try:
+        regional = get_regional_impact()
+        colors = {"Normal": "#5b9bc4", "Atenção": "#e8c33d", "Alerta": "#e0475c"}
+        fig = go.Figure()
+        for _, row in regional.iterrows():
+            fig.add_trace(go.Scattermap(lat=[row["Latitude"]], lon=[row["Longitude"]], mode="markers+text", text=[row["Município"]], textposition="top center", marker={"size":22, "color":colors.get(row["Risco meteorológico"], "#8da2b0")}, name=row["Município"], hovertemplate=f"<b>{row['Município']}</b><br>Risco: {row['Risco meteorológico']}<br>Chuva diária máxima: {row['Maior chuva diária (mm)']} mm<br>Rajada máxima: {row['Rajada máxima (km/h)']} km/h<extra></extra>"))
+        fig.update_layout(map={"style":"open-street-map", "center":{"lat":-29.86,"lon":-51.18}, "zoom":8.2}, height=420, margin={"l":0,"r":0,"t":10,"b":0}, paper_bgcolor="#152634", font={"color":"#eef1ee"}, legend={"orientation":"h"})
+        st.plotly_chart(fig, use_container_width=True, theme=None)
+        st.dataframe(regional[["Município", "Risco meteorológico", "Chuva 24h (mm)", "Maior chuva diária (mm)", "Rajada máxima (km/h)", "Rio monitorado", "Nível do rio"]], use_container_width=True, hide_index=True)
+        st.info("Para risco hidrológico, o painel cruza este indicador com as estações oficiais do Rio dos Sinos e do Guaíba quando a leitura pública está disponível. Quando o nível não é obtido automaticamente, o município permanece dependente da consulta oficial.")
+    except Exception as error:
+        st.warning(f"Não foi possível calcular o mapa regional agora: {error}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 def render_official_sources():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.subheader("Fontes oficiais de monitoramento")
@@ -323,6 +372,7 @@ st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#5b9bc4")
 
 render_river(data)
 render_basin_analysis(data)
+render_regional_impact()
 render_official_sources()
 render_enso()
 
