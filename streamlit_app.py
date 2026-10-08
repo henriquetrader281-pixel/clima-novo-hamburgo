@@ -200,7 +200,7 @@ def render_river(data):
         feed = get_river_feed()
         items = feed.get("items", [])
         stations = []
-        for tag, label in (("taquara", "Taquara (a montante)"), ("saoleopoldo", "São Leopoldo (a jusante)")):
+        for tag, label in (("taquara", "Taquara (a montante)"), ("campobom", "Campo Bom (intermediária)"), ("saoleopoldo", "São Leopoldo (a jusante)")):
             item = next((x for x in items if tag in x.get("tags", [])), None)
             if item:
                 title = item.get("title", "—")
@@ -212,6 +212,10 @@ def render_river(data):
                             title += " — Inundação"
                         elif level >= 3.50:
                             title += " — Atenção de inundação"
+                        if level >= 4.50:
+                            st.error(f"ALERTA: São Leopoldo atingiu {level:.2f} m — cota de inundação: 4,50 m. Consulte a Defesa Civil.")
+                        elif level >= 3.50:
+                            st.warning(f"Atenção: São Leopoldo está em {level:.2f} m — cota de atenção: 3,50 m.")
                 published = item.get("date_published")
                 stations.append({"Estação": label, "Leitura": title, "Atualizado": pd.to_datetime(published).strftime("%d/%m %H:%M") if published else "—"})
             else:
@@ -225,7 +229,7 @@ def render_river(data):
         ["São Leopoldo (ANA 87382000)", "3,50 m", "4,50 m"], ["Sapiranga", "—", "sem cota oficial divulgada"],
     ], columns=["Município", "Cota de atenção", "Cota de inundação"])
     st.dataframe(thresholds, use_container_width=True, hide_index=True)
-    st.caption("As cotas são referências divulgadas em boletins anteriores e podem ser revistas pela Defesa Civil. As leituras disponíveis são de Taquara e São Leopoldo; Novo Hamburgo não tem, neste painel, sensor público automatizado.")
+    st.caption("As cotas são referências divulgadas em boletins oficiais e podem ser revistas pela Defesa Civil. O painel acompanha Taquara, Campo Bom e São Leopoldo; Novo Hamburgo não tem, neste painel, sensor público automatizado.")
     st.markdown("[Gráfico completo — Nível Guaíba](https://nivelguaiba.com.br/saoleopoldo) · [Níveis dos rios — ClimaRS](https://clima.rs.gov.br/) · [SACE — SGB/CPRM](https://www.sgb.gov.br/sace/) · [Defesa Civil NH](https://www.novohamburgo.rs.gov.br/)")
     st.markdown('</div>', unsafe_allow_html=True)
 

@@ -235,6 +235,13 @@
   }
   .river-risk-pill .dot{ width:7px; height:7px; border-radius:50%; background: var(--pill-color, var(--slate-400)); }
   .river-sub{ font-size:12.5px; color: var(--slate-400); max-width:52ch; line-height:1.5; margin-top:4px; }
+  .river-alert{ display:none; padding:14px 16px; margin:0 0 14px; border:1px solid var(--sev-red); border-left:5px solid var(--sev-red); border-radius:4px; background:rgba(224,71,92,.14); color:var(--paper); }
+  .river-alert.show{ display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  .river-alert.attention{ border-color:var(--sev-yellow); border-left-color:var(--sev-yellow); background:rgba(232,195,61,.12); }
+  .river-alert-title{ font-family:var(--font-mono); font-size:12px; font-weight:600; letter-spacing:.04em; }
+  .river-alert-detail{ font-size:12.5px; color:var(--slate-200); margin-top:4px; }
+  .river-notify-btn{ border:1px solid var(--slate-400); border-radius:3px; padding:8px 12px; background:transparent; color:var(--paper); font:11px var(--font-mono); cursor:pointer; }
+  .river-notify-btn:hover{ border-color:var(--rain-blue); color:var(--rain-blue); }
 
   /* live station readouts (Nível Guaíba feed) */
   .river-live-wrap{ display:none; margin-bottom:18px; }
@@ -429,11 +436,16 @@
 
     <div class="card river-card">
       <div class="card-title" style="margin-bottom:14px;">Rio dos Sinos — monitoramento</div>
+      <div class="river-alert" id="riverAlert" role="alert" aria-live="assertive">
+        <div><div class="river-alert-title" id="riverAlertTitle"></div><div class="river-alert-detail" id="riverAlertDetail"></div></div>
+        <button class="river-notify-btn" id="riverNotifyBtn" type="button">Ativar alertas neste navegador</button>
+      </div>
 
       <div class="river-live-wrap" id="riverLiveWrap">
         <div class="river-live-badge"><span class="pulse"></span>Leituras reais — telemetria SGB/CPRM · ANA (via Nível Guaíba)</div>
         <div class="river-stations">
           <div class="river-station" id="riverStation_taquara"></div>
+          <div class="river-station" id="riverStation_campobom"></div>
           <div class="river-station" id="riverStation_saoleopoldo"></div>
         </div>
         <div class="river-spark-box">
@@ -465,7 +477,7 @@
         </tbody>
       </table>
       <div class="river-sub" style="margin-bottom:14px;">
-        Valores de referência divulgados em boletins oficiais — cada régua fica em um ponto diferente do rio, por isso os números não são comparáveis entre municípios, e a Defesa Civil pode revisá-los a qualquer momento. Em São Leopoldo, a fonte estadual indica atenção de inundação a partir de 3,50 m e inundação a partir de 4,50 m. Novo Hamburgo ainda não tem um sensor público de nível em tempo real (um projeto-piloto foi instalado em 2025 na Comusa, em Lomba Grande, mas sem leitura pública automatizada até o momento) — por isso as leituras reais acima são de Taquara (a montante) e São Leopoldo (a jusante), as estações mais próximas no mesmo rio.
+        Valores de referência divulgados em boletins oficiais — cada régua fica em um ponto diferente do rio, por isso os números não são comparáveis entre municípios, e a Defesa Civil pode revisá-los a qualquer momento. Em São Leopoldo, a fonte estadual indica atenção de inundação a partir de 3,50 m e inundação a partir de 4,50 m. O painel acompanha Taquara (a montante), Campo Bom (intermediária) e São Leopoldo (a jusante). Novo Hamburgo ainda não tem um sensor público automatizado neste painel; as leituras próximas são referências, não uma medição da cidade.
       </div>
       <div class="river-links">
         <a class="river-link" href="https://nivelguaiba.com.br/saoleopoldo" target="_blank" rel="noopener">
@@ -1041,6 +1053,45 @@ function drawRiverSparkline(){
   if(rangeEl) rangeEl.textContent = min.toFixed(2) + 'm – ' + max.toFixed(2) + 'm nesta sessão';
 }
 
+function notifyRiverAlert(level, station, threshold){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const key = `${station}-${level >= threshold ? 'inundacao' : 'atencao'}`;
+  if(localStorage.getItem('river-last-notification') === key) return;
+  new Notification(`Alerta no Rio dos Sinos — ${station}`, { body:`Nível observado: ${level.toFixed(2)} m. Cota de inundação: ${threshold.toFixed(2)} m.`, tag:'rio-dos-sinos-alerta' });
+  localStorage.setItem('river-last-notification', key);
+}
+
+function updateRiverAlert(saoLeopoldo){
+  const alert = document.getElementById('riverAlert');
+  const title = document.getElementById('riverAlertTitle');
+  const detail = document.getElementById('riverAlertDetail');
+  if(!alert || !title || !detail || !saoLeopoldo) return;
+  const match = saoLeopoldo.title.match(/([\d,]+)\s*m/);
+  if(!match) return;
+  const level = parseFloat(match[1].replace(',', '.'));
+  alert.classList.remove('attention');
+  if(level >= 4.50){
+    title.textContent = 'ALERTA: cota de inundação atingida em São Leopoldo';
+    detail.textContent = `Nível observado: ${level.toFixed(2)} m · cota de inundação: 4,50 m. Consulte a Defesa Civil.`;
+    alert.classList.add('show');
+    notifyRiverAlert(level, 'São Leopoldo', 4.50);
+  }else if(level >= 3.50){
+    title.textContent = 'Atenção: nível elevado no Rio dos Sinos';
+    detail.textContent = `São Leopoldo está em ${level.toFixed(2)} m · cota de atenção: 3,50 m · inundação: 4,50 m.`;
+    alert.classList.add('show', 'attention');
+  }else{
+    alert.classList.remove('show');
+  }
+}
+
+async function enableRiverNotifications(){
+  const button = document.getElementById('riverNotifyBtn');
+  if(!button || !('Notification' in window)){ if(button) button.textContent = 'Navegador sem suporte'; return; }
+  const permission = await Notification.requestPermission();
+  button.textContent = permission === 'granted' ? 'Alertas ativados neste navegador' : 'Permissão não concedida';
+  button.disabled = permission === 'granted';
+}
+
 async function fetchRiverLevels(){
   try{
     const res = await fetch('https://nivelguaiba.com.br/feed');
@@ -1048,10 +1099,13 @@ async function fetchRiverLevels(){
     const feed = await res.json();
     const items = feed.items || [];
     const taquara = items.find(it => (it.tags||[]).includes('taquara'));
+    const campoBom = items.find(it => (it.tags||[]).includes('campobom'));
     const saoLeopoldo = items.find(it => (it.tags||[]).includes('saoleopoldo'));
 
     renderRiverStation('riverStation_taquara', taquara, 'Taquara (a montante)');
+    renderRiverStation('riverStation_campobom', campoBom, 'Campo Bom (intermediária)', null, 7.20);
     renderRiverStation('riverStation_saoleopoldo', saoLeopoldo, 'São Leopoldo (a jusante)', 3.50, 4.50);
+    updateRiverAlert(saoLeopoldo);
 
     if(saoLeopoldo){
       const m = saoLeopoldo.title.match(/([\d,]+)\s*m/);
@@ -1076,6 +1130,7 @@ async function fetchRiverLevels(){
 }
 
 loadWeather('nh');
+document.getElementById('riverNotifyBtn').addEventListener('click', enableRiverNotifications);
 fetchRiverLevels();
 refreshTimer = setInterval(()=> loadWeather(currentStation), 15*60*1000);
 setInterval(fetchRiverLevels, 15*60*1000);
