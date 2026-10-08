@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Estação do Vale — Novo Hamburgo &amp; Lomba Grande</title>
+<meta name="theme-color" content="#0f1c26">
+<meta name="description" content="Previsão do tempo, alertas meteorológicos e monitoramento do Rio dos Sinos.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -583,6 +588,16 @@ let riverHistory = [];
 let weatherRequestId = 0;
 let weatherController = null;
 let hasWeatherData = false;
+// Preencher no backend/deploy quando o servidor Web Push estiver configurado.
+const PUSH_PUBLIC_KEY = '';
+const PUSH_SUBSCRIPTION_ENDPOINT = '';
+let appServiceWorkerRegistration = null;
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./service-worker.js', {scope:'./'})
+    .then(registration => { appServiceWorkerRegistration = registration; })
+    .catch(error => console.warn('Service Worker indisponível:', error));
+}
 
 const WMO = {
   0:  { desc: "Céu limpo", cat: "clear" },
@@ -1088,8 +1103,40 @@ async function enableRiverNotifications(){
   const button = document.getElementById('riverNotifyBtn');
   if(!button || !('Notification' in window)){ if(button) button.textContent = 'Navegador sem suporte'; return; }
   const permission = await Notification.requestPermission();
-  button.textContent = permission === 'granted' ? 'Alertas ativados neste navegador' : 'Permissão não concedida';
-  button.disabled = permission === 'granted';
+  if(permission !== 'granted'){
+    button.textContent = 'Permissão não concedida';
+    return;
+  }
+
+  // Quando o backend for configurado, este mesmo botão cria a assinatura persistente.
+  if(PUSH_PUBLIC_KEY && PUSH_SUBSCRIPTION_ENDPOINT){
+    try{
+      const registration = appServiceWorkerRegistration || await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY)
+      });
+      const response = await fetch(PUSH_SUBSCRIPTION_ENDPOINT, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(subscription)
+      });
+      if(!response.ok) throw new Error('falha ao salvar assinatura');
+      button.textContent = 'Alertas push ativados';
+      button.disabled = true;
+      return;
+    }catch(error){
+      console.error('Assinatura Web Push:', error);
+      button.textContent = 'Push indisponível; alertas locais ativos';
+    }
+  }else{
+    button.textContent = 'Alertas locais ativos — backend Push pendente';
+  }
+}
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
 async function fetchRiverLevels(){
