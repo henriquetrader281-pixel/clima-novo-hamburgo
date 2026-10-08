@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/**/*.js": { "runtime": "nodejs20.x" }
+  },
+  "crons": [
+    { "path": "/api/cron/river", "schedule": "*/5 * * * *" }
+  ]
+}

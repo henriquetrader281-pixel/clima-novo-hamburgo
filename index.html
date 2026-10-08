@@ -588,9 +588,20 @@ let riverHistory = [];
 let weatherRequestId = 0;
 let weatherController = null;
 let hasWeatherData = false;
-// Preencher no backend/deploy quando o servidor Web Push estiver configurado.
-const PUSH_PUBLIC_KEY = '';
-const PUSH_SUBSCRIPTION_ENDPOINT = '';
+// URL da API: relativa quando o PWA e a API estão no mesmo deploy;
+// para GitHub Pages, defina window.CLIMA_API_BASE antes deste script.
+const API_BASE = (window.CLIMA_API_BASE || '/api').replace(/\/$/, '');
+let PUSH_PUBLIC_KEY = '';
+let PUSH_SUBSCRIPTION_ENDPOINT = '';
+async function loadPushConfig(){
+  try{
+    const response = await fetch(`${API_BASE}/config`);
+    if(!response.ok) return;
+    const config = await response.json();
+    PUSH_PUBLIC_KEY = config.vapidPublicKey || '';
+    PUSH_SUBSCRIPTION_ENDPOINT = config.subscribeEndpoint?.startsWith('http') ? config.subscribeEndpoint : `${API_BASE}${config.subscribeEndpoint || '/push/subscribe'}`;
+  }catch(error){ console.warn('Configuração Push indisponível:', error); }
+}
 let appServiceWorkerRegistration = null;
 
 if('serviceWorker' in navigator){
@@ -699,15 +710,10 @@ async function loadWeather(stationKey){
   errorMsg.classList.remove('show');
   if(!hasWeatherData) content.classList.remove('show');
 
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lon}` +
-    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,cloud_cover` +
-    `&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,relative_humidity_2m,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max` +
-    `&timezone=America%2FSao_Paulo&forecast_days=15`;
-
+  const url = `${API_BASE}/weather?lat=${st.lat}&lon=${st.lon}`;
   try{
     const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-    if(!res.ok) throw new Error(`Open-Meteo respondeu com HTTP ${res.status}`);
+    if(!res.ok) throw new Error(`WeatherKit respondeu com HTTP ${res.status}`);
     const data = await res.json();
     if(requestId !== weatherRequestId) return;
     if(!data.current || !data.hourly || !data.daily) throw new Error('Resposta incompleta da API');
@@ -722,12 +728,12 @@ async function loadWeather(stationKey){
       "Última leitura: " + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + " — " + st.name;
   }catch(e){
     if(requestId !== weatherRequestId) return;
-    console.error('Previsão:', e);
+    console.error('Previsão WeatherKit:', e);
     statusMsg.classList.remove('show');
     errorMsg.classList.add('show');
     errorDetail.textContent = e.name === 'AbortError'
       ? 'A resposta demorou mais de 10 segundos. Tente novamente.'
-      : 'Verifique a ligação e tente novamente. A previsão é obtida em tempo real.';
+      : 'O WeatherKit não respondeu. Verifique as credenciais Apple e tente novamente.';
 
     try{
       const cached = JSON.parse(localStorage.getItem(`weather-cache-${stationKey}`) || 'null');
@@ -1141,13 +1147,13 @@ function urlBase64ToUint8Array(base64String){
 
 async function fetchRiverLevels(){
   try{
-    const res = await fetch('https://nivelguaiba.com.br/feed');
-    if(!res.ok) throw new Error('feed http error');
-    const feed = await res.json();
-    const items = feed.items || [];
-    const taquara = items.find(it => (it.tags||[]).includes('taquara'));
-    const campoBom = items.find(it => (it.tags||[]).includes('campobom'));
-    const saoLeopoldo = items.find(it => (it.tags||[]).includes('saoleopoldo'));
+    const res = await fetch(`${API_BASE}/river`);
+    if(!res.ok) throw new Error('backend river http error');
+    const payload = await res.json();
+    const item = station => station && station.level !== null ? { title: `${station.level.toFixed(2).replace('.', ',')} m`, tags:[station.status], date_published:station.observedAt || payload.fetchedAt } : null;
+    const taquara = item(payload.stations?.taquara);
+    const campoBom = item(payload.stations?.campobom);
+    const saoLeopoldo = item(payload.stations?.saoleopoldo);
 
     renderRiverStation('riverStation_taquara', taquara, 'Taquara (a montante)');
     renderRiverStation('riverStation_campobom', campoBom, 'Campo Bom (intermediária)', null, 7.20);
@@ -1176,6 +1182,7 @@ async function fetchRiverLevels(){
   }
 }
 
+loadPushConfig();
 loadWeather('nh');
 document.getElementById('riverNotifyBtn').addEventListener('click', enableRiverNotifications);
 fetchRiverLevels();
