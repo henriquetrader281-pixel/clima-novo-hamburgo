@@ -460,12 +460,12 @@
         <tbody>
           <tr><td class="city">Novo Hamburgo</td><td>6,60 m</td><td>~6,80–7,00 m</td></tr>
           <tr><td class="city">Campo Bom</td><td>—</td><td>7,20 m</td></tr>
-          <tr><td class="city">São Leopoldo (estação ANA 87382000)</td><td>—</td><td>4,50 m</td></tr>
+          <tr><td class="city">São Leopoldo (estação ANA 87382000)</td><td>3,50 m</td><td>4,50 m</td></tr>
           <tr><td class="city">Sapiranga</td><td>—</td><td>sem cota oficial divulgada</td></tr>
         </tbody>
       </table>
       <div class="river-sub" style="margin-bottom:14px;">
-        Valores de referência divulgados pela Defesa Civil em boletins de cheias anteriores — cada régua fica em um ponto diferente do rio, por isso os números não são comparáveis entre municípios, e a Defesa Civil pode revisá-los a qualquer momento. Novo Hamburgo ainda não tem um sensor público de nível em tempo real (um projeto-piloto foi instalado em 2025 na Comusa, em Lomba Grande, mas sem leitura pública automatizada até o momento) — por isso as leituras reais acima são de Taquara (a montante) e São Leopoldo (a jusante), as estações mais próximas no mesmo rio.
+        Valores de referência divulgados em boletins oficiais — cada régua fica em um ponto diferente do rio, por isso os números não são comparáveis entre municípios, e a Defesa Civil pode revisá-los a qualquer momento. Em São Leopoldo, a fonte estadual indica atenção de inundação a partir de 3,50 m e inundação a partir de 4,50 m. Novo Hamburgo ainda não tem um sensor público de nível em tempo real (um projeto-piloto foi instalado em 2025 na Comusa, em Lomba Grande, mas sem leitura pública automatizada até o momento) — por isso as leituras reais acima são de Taquara (a montante) e São Leopoldo (a jusante), as estações mais próximas no mesmo rio.
       </div>
       <div class="river-links">
         <a class="river-link" href="https://nivelguaiba.com.br/saoleopoldo" target="_blank" rel="noopener">
@@ -989,21 +989,27 @@ document.getElementById('retryBtn').addEventListener('click', ()=> loadWeather(c
 /* ---------------- LEITURAS REAIS DO RIO (feed público Nível Guaíba — SGB/CPRM · ANA) ---------------- */
 function riverStatusColor(status){
   if(status === 'normal') return 'var(--rain-blue)';
+  if(status === 'atenção') return 'var(--sev-yellow)';
+  if(status === 'inundação') return 'var(--sev-red)';
   if(status === 'alerta') return 'var(--sev-orange)';
   if(status === 'alagado') return 'var(--sev-red)';
   return 'var(--slate-400)';
 }
 
-function renderRiverStation(elId, item, label){
+function renderRiverStation(elId, item, label, attentionLevel=null, inundationLevel=null){
   const box = document.getElementById(elId);
   if(!box) return;
   if(!item){
     box.innerHTML = `<div class="river-station-label">${label}</div><div class="river-station-empty">sem leitura recente no feed</div>`;
     return;
   }
-  const status = (item.tags || []).find(t => ['normal','alerta','alagado'].includes(t)) || '—';
   const m = item.title.match(/([\d,]+)\s*m/);
   const level = m ? m[1] + ' m' : '—';
+  const numericLevel = m ? parseFloat(m[1].replace(',', '.')) : null;
+  let status = (item.tags || []).find(t => ['normal','alerta','alagado'].includes(t)) || '—';
+  // O feed agregado rotula 3,51 m como "Normal", mas a fonte estadual indica atenção a partir de 3,50 m.
+  if(numericLevel !== null && inundationLevel !== null && numericLevel >= inundationLevel) status = 'inundação';
+  else if(numericLevel !== null && attentionLevel !== null && numericLevel >= attentionLevel) status = 'atenção';
   const time = new Date(item.date_published).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   box.innerHTML = `
     <div class="river-station-label">${label}</div>
@@ -1045,7 +1051,7 @@ async function fetchRiverLevels(){
     const saoLeopoldo = items.find(it => (it.tags||[]).includes('saoleopoldo'));
 
     renderRiverStation('riverStation_taquara', taquara, 'Taquara (a montante)');
-    renderRiverStation('riverStation_saoleopoldo', saoLeopoldo, 'São Leopoldo (a jusante)');
+    renderRiverStation('riverStation_saoleopoldo', saoLeopoldo, 'São Leopoldo (a jusante)', 3.50, 4.50);
 
     if(saoLeopoldo){
       const m = saoLeopoldo.title.match(/([\d,]+)\s*m/);

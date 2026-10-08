@@ -204,6 +204,14 @@ def render_river(data):
             item = next((x for x in items if tag in x.get("tags", [])), None)
             if item:
                 title = item.get("title", "—")
+                if tag == "saoleopoldo":
+                    match = re.search(r"([\d,]+)m", title)
+                    if match:
+                        level = float(match.group(1).replace(",", "."))
+                        if level >= 4.50:
+                            title += " — Inundação"
+                        elif level >= 3.50:
+                            title += " — Atenção de inundação"
                 published = item.get("date_published")
                 stations.append({"Estação": label, "Leitura": title, "Atualizado": pd.to_datetime(published).strftime("%d/%m %H:%M") if published else "—"})
             else:
@@ -214,7 +222,7 @@ def render_river(data):
 
     thresholds = pd.DataFrame([
         ["Novo Hamburgo", "6,60 m", "~6,80–7,00 m"], ["Campo Bom", "—", "7,20 m"],
-        ["São Leopoldo (ANA 87382000)", "—", "4,50 m"], ["Sapiranga", "—", "sem cota oficial divulgada"],
+        ["São Leopoldo (ANA 87382000)", "3,50 m", "4,50 m"], ["Sapiranga", "—", "sem cota oficial divulgada"],
     ], columns=["Município", "Cota de atenção", "Cota de inundação"])
     st.dataframe(thresholds, use_container_width=True, hide_index=True)
     st.caption("As cotas são referências divulgadas em boletins anteriores e podem ser revistas pela Defesa Civil. As leituras disponíveis são de Taquara e São Leopoldo; Novo Hamburgo não tem, neste painel, sensor público automatizado.")
