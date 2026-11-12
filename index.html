@@ -9,6 +9,7 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -346,6 +347,24 @@
   .refresh-btn svg{ width:12px; height:12px; }
   .refresh-btn.spinning svg{ animation: spin 0.8s linear infinite; }
   @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* ---------- LIVE WEATHER MAP ---------- */
+  .weather-map-card{ margin-bottom:18px; }
+  .weather-map-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+  .map-status{ font:10px var(--font-mono); color:var(--slate-400); }
+  #weatherMap{ height:390px; margin-top:14px; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:#dce5e5; }
+  .map-legend{ display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font:10px var(--font-mono); color:var(--slate-400); }
+  .map-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .wind-arrow{ width:28px; height:28px; display:grid; place-items:center; color:#63b6e2; font:700 25px/1 Arial; text-shadow:0 1px 2px #10212d; }
+  .wind-arrow.warn{ color:#e8c33d; } .wind-arrow.alert{ color:#e0812f; } .wind-arrow.severe{ color:#e0475c; }
+  .map-info{ margin-top:10px; font-size:11px; color:var(--slate-400); line-height:1.45; }
+  .enso-map-image{ max-width:100%; max-height:160px; display:none; margin-top:10px; border:1px solid var(--line); border-radius:3px; object-fit:contain; background:#10212d; }
+  .enso-map-image.show{ display:block; }
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{ background:#152634; color:#eef1ee; }
+  .leaflet-popup-content{ font:12px Inter,sans-serif; line-height:1.45; }
+  .leaflet-control-layers{ font:11px Inter,sans-serif; }
+
 </style>
 </head>
 <body>
@@ -504,6 +523,25 @@
       </div>
     </div>
 
+
+    <div class="card weather-map-card">
+      <div class="weather-map-head">
+        <div>
+          <div class="card-title" style="margin-bottom:5px;">Mapa vivo — vento, tempestades e ENOS</div>
+          <div class="river-sub">Setas: direção de deslocamento e força do vento na região. Alertas: INMET. ENOS: mapa mensal oficial CPTEC/INPE.</div>
+        </div>
+        <div class="map-status" id="weatherMapStatus">Carregando camadas…</div>
+      </div>
+      <div id="weatherMap" role="application" aria-label="Mapa meteorológico de vento local e alertas INMET"></div>
+      <div class="map-legend">
+        <span><i class="legend-dot" style="background:#63b6e2"></i> até 39 km/h</span>
+        <span><i class="legend-dot" style="background:#e8c33d"></i> 40–59</span>
+        <span><i class="legend-dot" style="background:#e0812f"></i> 60–79</span>
+        <span><i class="legend-dot" style="background:#e0475c"></i> ≥ 80</span>
+      </div>
+      <img id="ensoMapImage" class="enso-map-image" alt="Mapa mais recente de anomalia de temperatura da superfície do mar do ENOS, CPTEC/INPE">
+      <div class="map-info" id="weatherMapInfo">Atualização automática a cada 10 minutos. Clique nos marcadores para detalhes.</div>
+    </div>
     <div class="card enso-card">
       <div class="enso-head">
         <div>
@@ -1188,6 +1226,47 @@ document.getElementById('riverNotifyBtn').addEventListener('click', enableRiverN
 fetchRiverLevels();
 refreshTimer = setInterval(()=> loadWeather(currentStation), 15*60*1000);
 setInterval(fetchRiverLevels, 15*60*1000);
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function initLiveWeatherMap(){
+  if(!window.L || !document.getElementById('weatherMap')) return;
+  const map = L.map('weatherMap', { zoomControl:true }).setView([-29.6783, -51.1308], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
+  const windLayer = L.layerGroup().addTo(map), alertLayer = L.layerGroup().addTo(map), ensoLayer = L.layerGroup();
+  const status = document.getElementById('weatherMapStatus'), info = document.getElementById('weatherMapInfo'), ensoImage = document.getElementById('ensoMapImage');
+  const typeLabel = {tornado:'Tornado', granizo:'Granizo', vento:'Vento forte', tempestade:'Tempestade'};
+  const windClass = speed => speed >= 80 ? 'severe' : speed >= 60 ? 'alert' : speed >= 40 ? 'warn' : '';
+  const arrow = (direction, speed) => L.divIcon({className:'', html:`<div class="wind-arrow ${windClass(speed)}" style="transform:rotate(${(Number(direction)+180)%360}deg)">↑</div>`, iconSize:[28,28], iconAnchor:[14,14]});
+  async function loadWind(){
+    const data = await fetch(`${API_BASE}/wind-map`, {cache:'no-store'}).then(r=>{if(!r.ok) throw Error('vento'); return r.json();});
+    windLayer.clearLayers();
+    (data.points||[]).forEach(point=>L.marker([point.lat,point.lon],{icon:arrow(point.wind_direction_10m,point.wind_gusts_10m)}).bindPopup(`<b>Vento local</b><br>Velocidade: ${Math.round(point.wind_speed_10m)} km/h<br>Rajada: ${Math.round(point.wind_gusts_10m)} km/h<br>Direção: ${Math.round(point.wind_direction_10m)}°<br>Temperatura: ${Math.round(point.temperature_2m)}°C`).addTo(windLayer));
+    return data.fetchedAt;
+  }
+  async function loadAlerts(){
+    const data = await fetch(`${API_BASE}/inmet-alerts`, {cache:'no-store'}).then(r=>{if(!r.ok) throw Error('alertas'); return r.json();});
+    alertLayer.clearLayers();
+    const colors={tornado:'#e0475c',granizo:'#8fd3d6',vento:'#e0812f',tempestade:'#9d7fe0'};
+    (data.alerts||[]).forEach(alert=>L.circleMarker([alert.lat,alert.lon],{radius:9,color:colors[alert.type]||'#e8c33d',fillColor:colors[alert.type]||'#e8c33d',fillOpacity:.85,weight:2}).bindPopup(`<b>${typeLabel[alert.type]||alert.type}</b><br>${alert.title}<br><small>${alert.precision==='estado'?'Posição aproximada pelo centroide estadual.':'Aviso INMET'}</small><br><a href="${alert.link||'https://avisos.inmet.gov.br/'}" target="_blank" rel="noopener">Abrir aviso oficial</a>`).addTo(alertLayer));
+    return data.fetchedAt;
+  }
+  async function loadEnso(){
+    const data = await fetch(`${API_BASE}/enso`, {cache:'no-store'}).then(r=>{if(!r.ok) throw Error('enso'); return r.json();});
+    if(data.images?.sstAnomaly){ ensoImage.src=data.images.sstAnomaly; ensoImage.classList.add('show'); ensoImage.title='Anomalia de TSM — CPTEC/INPE'; ensoLayer.clearLayers(); L.imageOverlay(data.images.sstAnomaly,[[-30,-180],[30,-60]],{opacity:.55,interactive:true}).addTo(ensoLayer); }
+    return data.fetchedAt;
+  }
+  async function refreshMap(){
+    status.textContent='Atualizando…';
+    const results=await Promise.allSettled([loadWind(),loadAlerts(),loadEnso()]);
+    const ok=results.filter(x=>x.status==='fulfilled').length;
+    status.textContent=`${ok}/3 camadas atualizadas · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+    info.textContent='Vento: Open-Meteo. Avisos: INMET. ENOS: CPTEC/INPE. Setas representam a direção para onde o vento sopra; alertas sem geometria municipal usam posição aproximada.';
+  }
+  L.control.layers({'Mapa base':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')},{'Vento local':windLayer,'Avisos INMET':alertLayer,'El Niño / ENOS':ensoLayer},{collapsed:false}).addTo(map);
+  refreshMap(); setInterval(refreshMap,10*60*1000);
+})();
 </script>
 </body>
 </html>
