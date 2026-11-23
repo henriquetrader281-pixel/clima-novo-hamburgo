@@ -1043,11 +1043,11 @@ function computeAlerts(data){
 
     // Vento — critérios aproximados do INMET (amarelo/laranja/vermelho)
     if(gust >= 100){
-      alerts.push({ day:i, dayLabel, type:'tornado', label:'Vendaval severo — risco de danos', color:'var(--sev-red)', icon:'tornado' });
+      alerts.push({ day:i, dayLabel, type:'wind', label:'Vendaval severo previsto — rajadas de ' + Math.round(gust) + ' km/h', color:'var(--sev-red)', icon:'wind' });
     } else if(gust >= 80){
-      alerts.push({ day:i, dayLabel, type:'tornado', label:'Vendaval — vento muito forte', color:'var(--sev-orange)', icon:'wind' });
+      alerts.push({ day:i, dayLabel, type:'wind', label:'Rajadas muito fortes previstas — ' + Math.round(gust) + ' km/h', color:'var(--sev-orange)', icon:'wind' });
     } else if(gust >= 60){
-      alerts.push({ day:i, dayLabel, type:'wind', label:'Vento forte', color:'var(--sev-yellow)', icon:'wind' });
+      alerts.push({ day:i, dayLabel, type:'wind', label:'Vento forte previsto — ' + Math.round(gust) + ' km/h', color:'var(--sev-yellow)', icon:'wind' });
     }
 
     // Chuva — critérios aproximados do INMET (mm acumulados em 24h)
@@ -1254,6 +1254,7 @@ document.getElementById('refreshBtn').addEventListener('click', (e)=>{
   const btn = e.currentTarget;
   btn.classList.add('spinning');
   loadWeather(currentStation).finally(()=> setTimeout(()=>btn.classList.remove('spinning'), 500));
+  loadHazardMonitors();
 });
 document.getElementById('retryBtn').addEventListener('click', ()=> loadWeather(currentStation));
 
@@ -1420,8 +1421,130 @@ async function fetchRiverLevels(){
   }
 }
 
+
+function escapeMonitorText(value){
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+  });
+}
+
+function setHazardState(id, kind, label){
+  const pill = document.getElementById(id);
+  const text = document.getElementById(id + 'Text');
+  if(!pill || !text) return;
+  pill.className = 'hazard-pill ' + kind;
+  text.textContent = label;
+}
+
+function isLocalInmetAlert(alert){
+  const text = String(alert.title || '') + ' ' + String(alert.description || '');
+  return alert.state === 'RS' || alert.precision === 'local' ||
+    /Novo Hamburgo|Lomba Grande|São Leopoldo|Sao Leopoldo|Campo Bom|Sapiranga|Estância Velha|Ivoti|Rio Grande do Sul|Metropolitana de Porto Alegre|Nordeste Rio-grandense/i.test(text);
+}
+
+function monitorEntry(alert){
+  const title = escapeMonitorText(alert.title || 'Aviso meteorológico');
+  const severity = escapeMonitorText(alert.severity || 'Severidade não informada');
+  const when = escapeMonitorText(alert.publishedAt || 'Horário não informado');
+  let href = 'https://avisos.inmet.gov.br/';
+  try{
+    const candidate = new URL(alert.link || '', window.location.href);
+    if(candidate.protocol === 'https:') href = candidate.href;
+  }catch(_){}
+  return '<div class="hazard-entry"><div class="hazard-entry-title">' + title + '</div>' +
+    '<div class="hazard-entry-meta"><span>' + severity + '</span><span>' + when + '</span></div>' +
+    '<a href="' + escapeMonitorText(href) + '" target="_blank" rel="noopener">Abrir aviso oficial ↗</a></div>';
+}
+
+async function loadTornadoMonitor(){
+  const box = document.getElementById('tornadoDetails');
+  if(!box) return;
+  setHazardState('tornadoState','', 'Consultando INMET…');
+  try{
+    const response = await fetch(API_BASE + '/inmet-alerts', {cache:'no-store'});
+    if(!response.ok) throw new Error('INMET HTTP ' + response.status);
+    const data = await response.json();
+    const regional = (data.alerts || []).filter(isLocalInmetAlert);
+    const tornado = regional.filter(function(a){ return a.type === 'tornado'; });
+    const storms = regional.filter(function(a){ return ['tempestade','granizo','vento','chuva','ciclone'].includes(a.type); });
+
+    if(tornado.length){
+      setHazardState('tornadoState','active','Aviso específico identificado');
+      box.innerHTML = tornado.slice(0,4).map(monitorEntry).join('');
+      return;
+    }
+
+    if(storms.length){
+      setHazardState('tornadoState','attention','Temporal monitorado · sem aviso de tornado');
+      box.innerHTML = '<div class="hazard-empty">Não há menção específica a tornado nos avisos encontrados. Há estes avisos meteorológicos relacionados na região:</div>' +
+        storms.slice(0,3).map(monitorEntry).join('');
+    }else{
+      setHazardState('tornadoState','clear','Nenhum aviso específico de tornado');
+      box.innerHTML = '<div class="hazard-empty">Nenhum aviso vigente do INMET mencionando tornado foi identificado nesta consulta para Novo Hamburgo e região. Isso não significa risco zero; acompanhe a Defesa Civil e os avisos oficiais.</div>';
+    }
+    const stamp = data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    if(stamp) box.insertAdjacentHTML('beforeend','<div class="hazard-entry-meta">Consulta INMET: ' + escapeMonitorText(stamp) + '</div>');
+  }catch(error){
+    console.warn('Monitor de tornados indisponível:', error);
+    setHazardState('tornadoState','unavailable','Fonte temporariamente indisponível');
+    box.innerHTML = '<div class="hazard-empty">Não foi possível consultar o feed do INMET agora. O painel não vai presumir ausência de risco. Consulte diretamente os <a href="https://avisos.inmet.gov.br/" target="_blank" rel="noopener">avisos oficiais</a>.</div>';
+  }
+}
+
+async function loadCycloneMonitor(){
+  const box = document.getElementById('cycloneDetails');
+  if(!box) return;
+  setHazardState('cycloneState','', 'Consultando Marinha…');
+  try{
+    const response = await fetch(API_BASE + '/cyclone-alerts', {cache:'no-store'});
+    if(!response.ok) throw new Error('CHM HTTP ' + response.status);
+    const data = await response.json();
+    const alerts = data.alerts || [];
+    const active = alerts.filter(function(a){ return a.status === 'active'; });
+    const scheduled = alerts.filter(function(a){ return a.status === 'scheduled' || a.status === 'unconfirmed'; });
+
+    if(active.length){
+      setHazardState('cycloneState','active','Aviso vigente do CHM');
+      box.innerHTML = active.slice(0,4).map(function(a){
+        const valid = a.validUntil ? new Date(a.validUntil).toLocaleString('pt-BR') : 'Vigência não identificada';
+        return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
+          '<div class="hazard-entry-meta"><span>Aviso ' + escapeMonitorText(a.number) + '</span><span>Válido até ' + escapeMonitorText(valid) + '</span></div>' +
+          '<div class="hazard-entry-meta">' + escapeMonitorText(a.area || a.summary || '') + '</div>' +
+          '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Abrir aviso da Marinha ↗</a></div>';
+      }).join('');
+    }else if(scheduled.length){
+      setHazardState('cycloneState','attention','Aviso localizado · conferir vigência');
+      box.innerHTML = scheduled.slice(0,3).map(function(a){
+        return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
+          '<div class="hazard-entry-meta"><span>Aviso ' + escapeMonitorText(a.number) + '</span><span>' + escapeMonitorText(a.status === 'scheduled' ? 'Vigência futura' : 'Vigência não identificada') + '</span></div>' +
+          '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Conferir na fonte ↗</a></div>';
+      }).join('');
+    }else{
+      setHazardState('cycloneState','clear','Sem aviso especial de ciclone');
+      box.innerHTML = '<div class="hazard-empty">A consulta aos avisos vigentes do CHM não encontrou, nesta atualização, aviso especial ativo mencionando ciclone tropical ou subtropical na METAREA V. Ciclones extratropicais podem aparecer em boletins e avisos de vento/tempo severo sem receber esta classificação.</div>';
+    }
+    const stamp = data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    if(stamp) box.insertAdjacentHTML('beforeend','<div class="hazard-entry-meta">Consulta CHM: ' + escapeMonitorText(stamp) + '</div>');
+  }catch(error){
+    console.warn('Monitor de ciclones indisponível:', error);
+    setHazardState('cycloneState','unavailable','Fonte temporariamente indisponível');
+    box.innerHTML = '<div class="hazard-empty">Não foi possível consultar os avisos da Marinha agora. O painel não vai presumir ausência de ciclones. Consulte os <a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">avisos vigentes do CHM</a>.</div>';
+  }
+}
+
+async function loadHazardMonitors(){
+  const button = document.getElementById('hazardRefreshBtn');
+  if(button){ button.disabled = true; button.textContent = 'Atualizando…'; }
+  await Promise.allSettled([loadTornadoMonitor(),loadCycloneMonitor()]);
+  if(button){ button.disabled = false; button.textContent = '↻ Atualizar fontes'; }
+}
+
+document.getElementById('hazardRefreshBtn').addEventListener('click', loadHazardMonitors);
+
 loadPushConfig();
 loadWeather('nh');
+loadHazardMonitors();
+setInterval(loadHazardMonitors, 15*60*1000);
 document.getElementById('riverNotifyBtn').addEventListener('click', enableRiverNotifications);
 fetchRiverLevels();
 refreshTimer = setInterval(()=> loadWeather(currentStation), 15*60*1000);
@@ -1436,7 +1559,7 @@ setInterval(fetchRiverLevels, 15*60*1000);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
   const windLayer = L.layerGroup().addTo(map), alertLayer = L.layerGroup().addTo(map), ensoLayer = L.layerGroup();
   const status = document.getElementById('weatherMapStatus'), info = document.getElementById('weatherMapInfo'), ensoImage = document.getElementById('ensoMapImage');
-  const typeLabel = {tornado:'Tornado', granizo:'Granizo', vento:'Vento forte', tempestade:'Tempestade'};
+  const typeLabel = {tornado:'Tornado (aviso explícito)', ciclone:'Ciclone', granizo:'Granizo', vento:'Vento forte', tempestade:'Tempestade', chuva:'Chuva intensa'};
   const windClass = speed => speed >= 80 ? 'severe' : speed >= 60 ? 'alert' : speed >= 40 ? 'warn' : '';
   const arrow = (direction, speed) => L.divIcon({className:'', html:`<div class="wind-arrow ${windClass(speed)}" style="transform:rotate(${(Number(direction)+180)%360}deg)">↑</div>`, iconSize:[28,28], iconAnchor:[14,14]});
   async function loadWind(){
@@ -1448,7 +1571,7 @@ setInterval(fetchRiverLevels, 15*60*1000);
   async function loadAlerts(){
     const data = await fetch(`${API_BASE}/inmet-alerts`, {cache:'no-store'}).then(r=>{if(!r.ok) throw Error('alertas'); return r.json();});
     alertLayer.clearLayers();
-    const colors={tornado:'#e0475c',granizo:'#8fd3d6',vento:'#e0812f',tempestade:'#9d7fe0'};
+    const colors={tornado:'#e0475c',ciclone:'#5b9bc4',granizo:'#8fd3d6',vento:'#e0812f',tempestade:'#9d7fe0',chuva:'#4fa3d9'};
     (data.alerts||[]).forEach(alert=>L.circleMarker([alert.lat,alert.lon],{radius:9,color:colors[alert.type]||'#e8c33d',fillColor:colors[alert.type]||'#e8c33d',fillOpacity:.85,weight:2}).bindPopup(`<b>${typeLabel[alert.type]||alert.type}</b><br>${alert.title}<br><small>${alert.precision==='estado'?'Posição aproximada pelo centroide estadual.':'Aviso INMET'}</small><br><a href="${alert.link||'https://avisos.inmet.gov.br/'}" target="_blank" rel="noopener">Abrir aviso oficial</a>`).addTo(alertLayer));
     return data.fetchedAt;
   }
@@ -1462,7 +1585,7 @@ setInterval(fetchRiverLevels, 15*60*1000);
     const results=await Promise.allSettled([loadWind(),loadAlerts(),loadEnso()]);
     const ok=results.filter(x=>x.status==='fulfilled').length;
     status.textContent=`${ok}/3 camadas atualizadas · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
-    info.textContent='Vento: Open-Meteo. Avisos: INMET. ENOS: CPTEC/INPE. Setas representam a direção para onde o vento sopra; alertas sem geometria municipal usam posição aproximada.';
+    info.textContent='Vento: Open-Meteo. Avisos meteorológicos: INMET. ENOS: CPTEC/INPE. Pinos sem geometria municipal são aproximações; consulte o aviso oficial antes de agir.';
   }
   L.control.layers({'Mapa base':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')},{'Vento local':windLayer,'Avisos INMET':alertLayer,'El Niño / ENOS':ensoLayer},{collapsed:false}).addTo(map);
   refreshMap(); setInterval(refreshMap,10*60*1000);
