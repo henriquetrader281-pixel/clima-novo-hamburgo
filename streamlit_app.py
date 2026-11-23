@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 import re
 from datetime import datetime
 from pathlib import Path
@@ -23,28 +24,71 @@ LOCAL_TZ_LABEL = "Horário de Brasília"
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-.stApp { background:#0f1c26; color:#eef1ee; }
-.block-container { max-width:1040px; padding:2rem 2rem 4rem; }
-h1,h2,h3 { font-family:'Space Grotesk',sans-serif; }
-.caption-mono,.metric-label,.small-mono { font-family:'IBM Plex Mono',monospace; }
-.caption-mono { color:#5b9bc4; letter-spacing:.15em; text-transform:uppercase; font-size:.72rem; }
-.subtitle,.muted { color:#8da2b0; }
-.panel { background:#152634; border:1px solid rgba(199,211,218,.15); border-radius:6px; padding:1.15rem; margin:.8rem 0; }
-.metric-card { background:#152634; border:1px solid rgba(199,211,218,.15); border-radius:5px; padding:1rem; min-height:112px; }
-.metric-label { color:#8da2b0; font-size:.68rem; letter-spacing:.11em; text-transform:uppercase; }
-.metric-value { color:#eef1ee; font:600 1.8rem 'Space Grotesk',sans-serif; margin-top:.45rem; }
-.metric-help { color:#8da2b0; font-size:.78rem; margin-top:.2rem; }
-.river-pill { display:inline-block; border:1px solid #e8a33d; color:#e8a33d; border-radius:20px; padding:.35rem .75rem; font:600 .75rem 'IBM Plex Mono',monospace; }
-.enso-stat { border-bottom:1px solid rgba(199,211,218,.12); padding:.6rem 0; }
-.enso-stat:last-child { border-bottom:0; }
-.enso-label { color:#8da2b0; display:block; font: .68rem 'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:.1em; }
-.enso-value { color:#eef1ee; display:block; margin-top:.25rem; }
-.region-high,.region-low { border-radius:4px; padding:.8rem; font-size:.88rem; }
-.region-high { background:rgba(224,71,92,.12); border-left:3px solid #e0475c; }
-.region-low { background:rgba(91,155,196,.12); border-left:3px solid #5b9bc4; }
-footer { color:#7c93a3; font-size:.8rem; border-top:1px solid rgba(199,211,218,.15); margin-top:1.5rem; padding-top:1rem; }
-a { color:#e8a33d !important; }
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+:root{--bg:#071521;--surface:#0d2130;--surface2:#142d40;--text:#f2f7f7;--muted:#98afbd;--blue:#69b8e2;--gold:#f2b84b;--line:rgba(178,207,222,.15)}
+html,body,[class*="css"]{font-family:'Inter',sans-serif}
+.stApp{background:radial-gradient(ellipse 760px 520px at 8% -8%,rgba(47,129,174,.22),transparent 65%),radial-gradient(ellipse 650px 420px at 98% 10%,rgba(242,184,75,.09),transparent 62%),linear-gradient(145deg,#071521 0%,#0a1c2a 48%,#091927 100%);color:var(--text)}
+[data-testid="stAppViewContainer"]{background:transparent}
+.block-container{max-width:1380px;padding:1.7rem clamp(1rem,3vw,2.8rem) 4rem}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif!important;letter-spacing:-.035em;color:var(--text)}
+h1{font-size:clamp(2rem,4vw,3rem)!important;line-height:1.08!important}
+h2{font-size:1.55rem!important}
+h3{font-size:1.2rem!important}
+p,li,label{color:#cfdae0}
+.caption-mono,.metric-label,.small-mono{font-family:'IBM Plex Mono',monospace}
+.caption-mono{color:#8bc9e8;letter-spacing:.18em;text-transform:uppercase;font-size:.68rem;margin-bottom:.4rem}
+.subtitle,.muted,[data-testid="stCaptionContainer"]{color:var(--muted)!important}
+.hero-clock{background:linear-gradient(145deg,rgba(19,47,66,.94),rgba(10,29,43,.8));border:1px solid var(--line);border-radius:18px;padding:13px 18px;text-align:center;box-shadow:0 14px 34px rgba(0,0,0,.17)}
+.hero-clock .time{font:600 2rem 'Space Grotesk',sans-serif;color:#fff;letter-spacing:-.05em}
+.hero-clock .date{font: .65rem 'IBM Plex Mono',monospace;color:var(--muted);text-transform:capitalize}
+.header-status{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(105,184,226,.22);background:rgba(40,105,140,.13);border-radius:999px;padding:6px 11px;color:#b8d8e8;font: .62rem 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase}
+.header-status:before{content:"";width:7px;height:7px;border-radius:50%;background:#65d6a3;box-shadow:0 0 0 4px rgba(101,214,163,.12)}
+.metric-card{background:linear-gradient(145deg,rgba(19,47,66,.98),rgba(10,29,43,.97));border:1px solid var(--line);border-radius:18px;padding:1.05rem 1.1rem;min-height:125px;box-shadow:0 14px 30px rgba(0,0,0,.14)}
+.metric-label{color:#8eaaba;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase}
+.metric-value{color:#f4f8f7;font:700 clamp(1.35rem,2.5vw,2rem) 'Space Grotesk',sans-serif;margin-top:.55rem;letter-spacing:-.05em}
+.metric-help{color:#9bb1bd;font-size:.72rem;margin-top:.2rem;line-height:1.45}
+.panel{background:linear-gradient(145deg,rgba(16,41,59,.96),rgba(10,29,43,.96));border:1px solid var(--line);border-radius:20px;padding:1.25rem;margin:.7rem 0;box-shadow:0 14px 34px rgba(0,0,0,.12)}
+[data-testid="stVerticalBlockBorderWrapper"]{background:rgba(13,33,48,.58);border:1px solid var(--line);border-radius:18px}
+[data-testid="stTabs"] [data-baseweb="tab-list"]{gap:6px;background:rgba(7,21,33,.68);padding:7px;border:1px solid var(--line);border-radius:999px}
+[data-testid="stTabs"] button[data-baseweb="tab"]{height:42px;border-radius:999px;padding:0 16px;color:#a8bfcb;font: .68rem 'IBM Plex Mono',monospace}
+[data-testid="stTabs"] button[aria-selected="true"]{background:linear-gradient(135deg,#244c65,#16364d);color:#fff;border:1px solid rgba(242,184,75,.4)}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"]{background:var(--gold)}
+[data-testid="stSelectbox"]>div>div{background:#0d2130;border:1px solid var(--line);border-radius:12px}
+.stButton>button,[data-testid="stBaseButton-secondary"]{background:rgba(105,184,226,.10);border:1px solid rgba(105,184,226,.28);color:#d8edf6;border-radius:999px;padding:.55rem 1rem;font: .68rem 'IBM Plex Mono',monospace;transition:.2s}
+.stButton>button:hover,[data-testid="stBaseButton-secondary"]:hover{background:rgba(105,184,226,.18);border-color:var(--blue);color:#fff}
+[data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+[data-testid="stAlert"]{border-radius:14px}
+.stSuccess,.stInfo,.stWarning,.stError{border-radius:14px}
+.river-pill{display:inline-block;border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:.4rem .8rem;font:600 .68rem 'IBM Plex Mono',monospace;background:rgba(242,184,75,.07)}
+.enso-stat{border-bottom:1px solid var(--line);padding:.65rem 0}
+.enso-stat:last-child{border-bottom:0}
+.enso-label{color:var(--muted);display:block;font:.64rem 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+.enso-value{color:var(--text);display:block;margin-top:.25rem;font-weight:600}
+.region-high,.region-low{border-radius:13px;padding:.9rem;font-size:.84rem;line-height:1.5;min-height:100%}
+.region-high{background:rgba(224,71,92,.12);border:1px solid rgba(224,71,92,.18);border-left:3px solid #e0475c}
+.region-low{background:rgba(91,155,196,.12);border:1px solid rgba(91,155,196,.18);border-left:3px solid #5b9bc4}
+.monitor-card{background:linear-gradient(145deg,rgba(15,40,58,.98),rgba(8,27,41,.98));border:1px solid var(--line);border-radius:18px;padding:1rem 1.1rem;margin:.3rem 0 .8rem}
+.monitor-kicker{color:#8bc9e8;font: .62rem 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase}
+.monitor-state{display:inline-block;border-radius:999px;padding:.3rem .65rem;font:600 .6rem 'IBM Plex Mono',monospace;letter-spacing:.05em;margin:.55rem 0}
+.state-clear{color:#9ce0bd;border:1px solid rgba(101,214,163,.28);background:rgba(101,214,163,.08)}
+.state-alert{color:#ffb9c2;border:1px solid rgba(224,71,92,.35);background:rgba(224,71,92,.1)}
+.state-warn{color:#ffd58a;border:1px solid rgba(242,184,75,.3);background:rgba(242,184,75,.09)}
+.state-offline{color:#ffb6a9;border:1px solid rgba(224,129,47,.3);background:rgba(224,129,47,.08)}
+.monitor-entry{background:rgba(7,21,33,.4);border:1px solid rgba(178,207,222,.13);border-radius:12px;padding:.75rem .85rem;margin:.55rem 0}
+.monitor-entry strong{color:#edf5f6;font-size:.82rem}
+.monitor-meta{color:#92adbb;font:.62rem 'IBM Plex Mono',monospace;margin-top:.35rem}
+.monitor-entry a{color:#9acde4!important;font-size:.72rem}
+.source-note{color:#829baa;font-size:.7rem;line-height:1.55}
+footer{color:#829baa;font-size:.76rem;border-top:1px solid var(--line);margin-top:1.5rem;padding-top:1rem}
+a{color:#9acde4!important}
+hr{border-color:var(--line)}
+@media(max-width:700px){
+ .block-container{padding:1rem .8rem 3rem}
+ [data-testid="stTabs"] [data-baseweb="tab-list"]{overflow-x:auto;border-radius:14px}
+ [data-testid="stTabs"] button[data-baseweb="tab"]{padding:0 10px;font-size:.6rem}
+ .metric-card{min-height:105px;padding:.8rem}
+ .metric-value{font-size:1.35rem}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -181,8 +225,8 @@ def compute_alerts(data):
         if rain >= 100: alerts.append(("Chuva muito forte", f"{day}: {rain:.0f} mm acumulados"))
         elif rain >= 50: alerts.append(("Chuva forte", f"{day}: {rain:.0f} mm acumulados"))
         elif rain >= 20: alerts.append(("Chuva moderada", f"{day}: {rain:.0f} mm acumulados"))
-        if gust >= 100: alerts.append(("Vendaval severo", f"{day}: rajadas de {gust:.0f} km/h"))
-        elif gust >= 60: alerts.append(("Vento forte", f"{day}: rajadas de {gust:.0f} km/h"))
+        if gust >= 100: alerts.append(("Rajadas severas previstas", f"{day}: rajadas de {gust:.0f} km/h — não é confirmação de tornado"))
+        elif gust >= 60: alerts.append(("Vento forte previsto", f"{day}: rajadas de {gust:.0f} km/h"))
     return list(dict.fromkeys(alerts))
 
 def render_river(data):
@@ -324,6 +368,297 @@ def get_enso_probabilities():
     issued = issued_match.group(1) if issued_match else "data não informada"
     return pd.DataFrame(rows), issued
 
+
+# ---------------- MONITORAMENTO OFICIAL DE EVENTOS EXTREMOS ----------------
+INMET_RSS_URL = "https://apiprevmet3.inmet.gov.br/avisos/rss"
+CHM_WARNINGS_URL = "https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo"
+CHM_CYCLONE_ARCHIVE_URL = "https://www.marinha.mil.br/chm/dados-do-smm-monitoramento-de-ciclones"
+CHM_MONTHS = {"JAN": 1, "FEV": 2, "FEB": 2, "MAR": 3, "ABR": 4, "APR": 4, "MAI": 5, "MAY": 5,
+              "JUN": 6, "JUL": 7, "AGO": 8, "AUG": 8, "SET": 9, "SEP": 9, "OUT": 10, "OCT": 10,
+              "NOV": 11, "DEZ": 12, "DEC": 12}
+INMET_HEADERS = {"User-Agent": "Estacao-do-Vale/2.0 (weather dashboard)", "Accept": "application/rss+xml, application/xml, text/xml"}
+
+def _xml_child_text(node, wanted):
+    for child in node.iter():
+        if child.tag.split("}")[-1].lower() == wanted.lower():
+            return (child.text or "").strip()
+    return ""
+
+def _point_in_polygon(lat, lon, polygon):
+    """Ray-casting test. Polygon points use CAP's 'latitude,longitude' notation."""
+    points = []
+    for pair in polygon.split():
+        try:
+            p_lat, p_lon = [float(v) for v in pair.split(",")[:2]]
+            points.append((p_lon, p_lat))
+        except (ValueError, TypeError):
+            continue
+    if len(points) < 3:
+        return False
+    inside = False
+    x, y = lon, lat
+    j = len(points) - 1
+    for i in range(len(points)):
+        xi, yi = points[i]
+        xj, yj = points[j]
+        intersects = ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / ((yj - yi) or 1e-12) + xi)
+        if intersects:
+            inside = not inside
+        j = i
+    return inside
+
+def _parse_cap_details(url):
+    """Fetch one CAP alert to obtain its geographic area and validity window."""
+    if not url or not url.startswith("https://apiprevmet3.inmet.gov.br/"):
+        return {}
+    try:
+        response = requests.get(url, headers=INMET_HEADERS, timeout=5)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        info_nodes = [node for node in root.iter() if node.tag.split("}")[-1].lower() == "info"]
+        details = {"areas": [], "polygons": [], "expires": None, "description": ""}
+        for info in info_nodes[:4]:
+            description = _xml_child_text(info, "description")
+            if description:
+                details["description"] = (details["description"] + " " + description).strip()
+            for node in info.iter():
+                tag = node.tag.split("}")[-1].lower()
+                if tag == "expires" and node.text:
+                    details["expires"] = node.text.strip()
+                if tag == "areadesc" and node.text:
+                    details["areas"].append(node.text.strip())
+                if tag == "polygon" and node.text:
+                    details["polygons"].append(node.text.strip())
+        return details
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_inmet_alerts():
+    response = requests.get(INMET_RSS_URL, headers=INMET_HEADERS, timeout=12)
+    response.raise_for_status()
+    root = ET.fromstring(response.content)
+    items = [node for node in root.iter() if node.tag.split("}")[-1].lower() == "item"]
+    alerts = []
+    lat, lon = STATIONS["Novo Hamburgo — Centro"]
+    for item in items[:30]:
+        title = _xml_child_text(item, "title")
+        description = BeautifulSoup(_xml_child_text(item, "description"), "html.parser").get_text(" ", strip=True)
+        link = _xml_child_text(item, "link")
+        published = _xml_child_text(item, "pubdate")
+        full_text = f"{title} {description}".lower()
+        if re.search(r"tornado|tromba.?d.?agua|tromba.?d.?água|funil de vento", full_text):
+            kind = "tornado"
+        elif re.search(r"ciclone|ciclonico|ciclônico|subtropical", full_text):
+            kind = "ciclone"
+        elif "granizo" in full_text:
+            kind = "granizo"
+        elif re.search(r"tempestade|trovoada|raios", full_text):
+            kind = "tempestade"
+        elif re.search(r"vendaval|vento forte|ventos fortes|rajada", full_text):
+            kind = "vento"
+        elif re.search(r"chuva intensa|chuvas intensas|chuva forte", full_text):
+            kind = "chuva"
+        else:
+            continue
+
+        cap = _parse_cap_details(link)
+        area_text = " | ".join(cap.get("areas", []))
+        detail_text = f"{description} {cap.get('description', '')} {area_text}".lower()
+        polygons = cap.get("polygons", [])
+        if polygons:
+            is_local = any(_point_in_polygon(lat, lon, polygon) for polygon in polygons)
+            location_basis = "polígono oficial CAP"
+        else:
+            is_local = bool(re.search(
+                r"\b(rio grande do sul|rs|novo hamburgo|lomba grande|são leopoldo|sao leopoldo|campo bom|sapiranga|vale do sinos|metropolitana de porto alegre)\b",
+                detail_text, re.I
+            ))
+            location_basis = "descrição textual; posição aproximada" if is_local else "localização não confirmada"
+        expires = cap.get("expires")
+        valid = True
+        if expires:
+            try:
+                expiry = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+                valid = expiry >= datetime.now(timezone.utc)
+            except ValueError:
+                pass
+        if valid:
+            alerts.append({
+                "title": title or "Aviso INMET",
+                "description": description or cap.get("description", ""),
+                "type": kind,
+                "link": link,
+                "published": published,
+                "areas": area_text,
+                "local": is_local,
+                "location_basis": location_basis,
+                "expires": expires,
+            })
+    return alerts
+
+def _chm_utc_datetime(day, hhmm, month, year, issue_day):
+    if int(day) < int(issue_day):
+        month += 1
+    return datetime(int(year), month, int(day), int(hhmm[:2]), int(hhmm[2:]), tzinfo=ZoneInfo("UTC"))
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_chm_notices():
+    response = requests.get(CHM_WARNINGS_URL, headers={"User-Agent": "Mozilla/5.0 Estacao-do-Vale/2.0"}, timeout=12)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    text = re.sub(r"[ \t]+", " ", soup.get_text("\n", strip=True))
+    # The first half of the page is Portuguese; English translations repeat the same notices.
+    if "ALPHA AREA" in text:
+        text = text.split("ALPHA AREA", 1)[0]
+    blocks = re.split(r"(?=AVISO\s+NR\.?\s+[A-Z0-9-]+/\d{4})", text, flags=re.I)
+    notices = []
+    now_utc = datetime.now(timezone.utc)
+    for block in blocks:
+        header = re.search(r"AVISO\s+NR\.?\s+([A-Z0-9-]+/\d{4})", block, flags=re.I)
+        if not header:
+            continue
+        title_match = re.search(r"AVISO\s+(?:ESPECIAL\s+)?(?:DE\s+)?[A-ZÁÉÍÓÚÇ ]{4,80}", block, flags=re.I)
+        issue_match = re.search(
+            r"EMITIDO\s+ÀS\s+(\d{4})Z\s*-\s*[\wÁÉÍÓÚÇ-]+\s*-\s*(\d{2})/([A-Z]{3})/(\d{4})",
+            block, flags=re.I
+        )
+        validity = re.search(r"VÁLIDO\s+ATÉ\s+(\d{2})(\d{4})Z", block, flags=re.I)
+        start_at = re.search(r"A\s+PARTIR\s+DE\s+(\d{2})(\d{4})Z", block, flags=re.I)
+        issued = None
+        starts = None
+        expires = None
+        if issue_match:
+            issue_hhmm, issue_day, issue_month_text, issue_year = issue_match.groups()
+            month = CHM_MONTHS.get(issue_month_text.upper())
+            if month:
+                issued = _chm_utc_datetime(issue_day, issue_hhmm, month, issue_year, issue_day)
+                if validity:
+                    expires = _chm_utc_datetime(validity.group(1), validity.group(2), month, issue_year, issue_day)
+                if start_at:
+                    starts = _chm_utc_datetime(start_at.group(1), start_at.group(2), month, issue_year, issue_day)
+        active = (expires is None or expires >= now_utc) and (starts is None or starts <= now_utc)
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        notices.append({
+            "number": header.group(1),
+            "title": title_match.group(0).strip() if title_match else (lines[1] if len(lines) > 1 else "Aviso de mau tempo"),
+            "text": re.sub(r"\s+", " ", block).strip(),
+            "issued": issued,
+            "starts": starts,
+            "expires": expires,
+            "active": active,
+            "area": next((line for line in lines if re.search(r"ÁREA|AREA COSTEIRA", line, re.I)), ""),
+        })
+    return notices
+
+def _render_monitor_item(item, source):
+    title = item.get("title", "Aviso meteorológico")
+    meta = []
+    if item.get("areas"):
+        meta.append(item["areas"])
+    if item.get("published"):
+        meta.append(item["published"])
+    elif item.get("expires"):
+        meta.append("Válido até " + str(item["expires"]))
+    area_line = " · ".join(meta)
+    st.markdown(
+        '<div class="monitor-entry"><strong>' + title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") +
+        '</strong><div class="monitor-meta">' + area_line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") +
+        '</div></div>', unsafe_allow_html=True
+    )
+    if item.get("link"):
+        st.markdown(f"[Abrir aviso oficial — {source} ↗]({item['link']})")
+
+def render_extreme_event_monitors():
+    st.markdown("### Tornados e ciclones")
+    st.caption("Avisos oficiais vigentes. Rajadas previstas e temporais não são, por si só, confirmação de tornado ou ciclone.")
+    left, right = st.columns(2, gap="large")
+
+    # Tornado monitor — INMET alert feed plus geographic check using each CAP polygon.
+    with left:
+        st.markdown('<div class="monitor-card"><div class="monitor-kicker">INMET · Alertas CAP/RSS</div><h3>🌪️ Monitor de tornados</h3></div>', unsafe_allow_html=True)
+        try:
+            inmet = get_inmet_alerts()
+            regional = [a for a in inmet if a["local"]]
+            tornadoes = [a for a in regional if a["type"] == "tornado"]
+            other = [a for a in regional if a["type"] != "tornado"]
+            if tornadoes:
+                st.markdown('<span class="monitor-state state-alert">AVISO ESPECÍFICO IDENTIFICADO</span>', unsafe_allow_html=True)
+                st.error("O texto de um aviso oficial menciona tornado ou fenômeno relacionado e sua área atinge Novo Hamburgo, conforme CAP ou descrição geográfica.")
+                for item in tornadoes[:4]:
+                    _render_monitor_item(item, "INMET")
+            elif other:
+                st.markdown('<span class="monitor-state state-warn">TEMPO SEVERO · SEM AVISO ESPECÍFICO DE TORNADO</span>', unsafe_allow_html=True)
+                st.warning("Há avisos oficiais de tempo severo que atingem a região, mas nenhum deles menciona tornado explicitamente.")
+                for item in other[:4]:
+                    _render_monitor_item(item, "INMET")
+            else:
+                st.markdown('<span class="monitor-state state-clear">SEM AVISO ESPECÍFICO DE TORNADO</span>', unsafe_allow_html=True)
+                st.success("Nenhum aviso vigente do INMET mencionando tornado foi encontrado para o ponto de Novo Hamburgo nesta consulta.")
+                st.caption("Isso não significa risco zero nem substitui radar, Defesa Civil ou observação meteorológica.")
+            st.caption(f"Fonte consultada: INMET · {len(inmet)} aviso(s) de fenômenos relevantes no feed; {len(regional)} com área local confirmada. Atualização em cache de 5 minutos.")
+        except Exception as error:
+            st.markdown('<span class="monitor-state state-offline">FONTE INDISPONÍVEL</span>', unsafe_allow_html=True)
+            st.error(f"Não foi possível consultar o INMET. O painel não presume ausência de risco. Detalhe: {error}")
+        st.markdown("[Abrir avisos oficiais do INMET ↗](https://avisos.inmet.gov.br/)")
+
+    # Cyclone monitor — active CHM notices, cross-checked with INMET local CAP alerts.
+    with right:
+        st.markdown('<div class="monitor-card"><div class="monitor-kicker">Marinha / CHM + INMET</div><h3>🌀 Monitor de ciclones</h3></div>', unsafe_allow_html=True)
+        chm_error = None
+        inmet_error = None
+        try:
+            chm = get_chm_notices()
+        except Exception as error:
+            chm = []
+            chm_error = str(error)
+        try:
+            inmet = get_inmet_alerts()
+        except Exception as error:
+            inmet = []
+            inmet_error = str(error)
+
+        chm_active_cyclones = [a for a in chm if a["active"] and re.search(r"ciclone|ciclon|subtropical|tropical", a["text"], re.I)]
+        inmet_cyclones = [a for a in inmet if a["local"] and a["type"] == "ciclone"]
+
+        if chm_active_cyclones or inmet_cyclones:
+            st.markdown('<span class="monitor-state state-alert">AVISO DE CICLONE IDENTIFICADO</span>', unsafe_allow_html=True)
+            for item in chm_active_cyclones[:4]:
+                expiry = item["expires"].astimezone(LOCAL_TZ).strftime("%d/%m %H:%M") if item["expires"] else "vigência não identificada"
+                st.warning(f"**{item['title']}** · CHM aviso {item['number']} · válido até {expiry} (horário de Brasília)")
+                st.caption(item["area"])
+                st.markdown("[Abrir aviso vigente da Marinha ↗](" + CHM_WARNINGS_URL + ")")
+            for item in inmet_cyclones[:4]:
+                _render_monitor_item(item, "INMET")
+        elif chm_error and inmet_error:
+            st.markdown('<span class="monitor-state state-offline">FONTES INDISPONÍVEIS</span>', unsafe_allow_html=True)
+            st.error("Não foi possível consultar Marinha nem INMET. O painel não presume ausência de ciclone.")
+            st.caption(f"CHM: {chm_error} · INMET: {inmet_error}")
+        elif chm_error or inmet_error:
+            st.markdown('<span class="monitor-state state-warn">CONSULTA PARCIAL</span>', unsafe_allow_html=True)
+            st.warning("Uma das fontes oficiais não respondeu. Consulte os avisos originais antes de concluir que não há risco.")
+            if chm_error:
+                st.caption("CHM indisponível nesta consulta.")
+            if inmet_error:
+                st.caption("INMET indisponível nesta consulta.")
+        else:
+            st.markdown('<span class="monitor-state state-clear">SEM AVISO ESPECIAL ATIVO IDENTIFICADO</span>', unsafe_allow_html=True)
+            st.success("Não foi encontrado aviso vigente mencionando ciclone tropical ou subtropical na METAREA V, nem aviso local do INMET classificado como ciclone.")
+            st.caption("O CHM publica avisos especiais para ciclones tropicais/subtropicais. Ciclones extratropicais podem aparecer em avisos gerais de vento e tempo severo.")
+            # Display any active coastal warning for context without relabelling it as a cyclone.
+            coast = [a for a in chm if a["active"] and re.search(r"RS|SANTA CATARINA|PARANÁ|CHUÍ|TRAMANDAÍ|RIO GRANDE", a["text"], re.I)]
+            if coast:
+                st.caption("Outros avisos marítimos ativos na costa sul (não classificados como ciclone):")
+                for item in coast[:3]:
+                    expiry = item["expires"].astimezone(LOCAL_TZ).strftime("%d/%m %H:%M") if item["expires"] else "vigência não identificada"
+                    st.info(f"**{item['title']}** · {item['area']} · até {expiry}")
+        st.markdown(f"[Avisos vigentes do CHM ↗]({CHM_WARNINGS_URL})")
+        st.markdown(f"[Arquivo histórico de ciclones tropicais/subtropicais ↗]({CHM_CYCLONE_ARCHIVE_URL})")
+        st.caption("O arquivo de ciclones do CHM é histórico; não é um rastreador ao vivo.")
+
+    st.markdown("---")
+    st.caption("Segurança: a ausência de aviso específico não significa ausência de risco. Em situação crítica, siga os canais da Defesa Civil, INMET e Marinha.")
+
 def render_enso():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     try:
@@ -355,72 +690,154 @@ def render_enso():
     st.markdown("[Probabilidades oficiais NOAA/CPC](https://cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/) · [Boletim ENSO](https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml) · [NOAA/NCEI — ENSO](https://www.ncei.noaa.gov/access/monitoring/enso/) · [INMET](https://portal.inmet.gov.br/)")
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="caption-mono">ESTAÇÃO DO VALE · BOLETIM LOCAL</div>', unsafe_allow_html=True)
-st.title("Clima — Novo Hamburgo & Lomba Grande")
-st.write("Previsão de 15 dias, alertas de tempestade e granizo, monitoramento do Rio dos Sinos e rastreio do El Niño — via Open-Meteo e fontes públicas.")
+# ---------------- INTERFACE PRINCIPAL ----------------
+now_local = datetime.now(LOCAL_TZ)
+hero_left, hero_right = st.columns([5, 1.15], vertical_alignment="center")
+with hero_left:
+    st.markdown('<div class="caption-mono">ESTAÇÃO DO VALE · CENTRAL METEOROLÓGICA LOCAL</div>', unsafe_allow_html=True)
+    st.title("Clima — Novo Hamburgo & Lomba Grande")
+    st.caption("Previsão do tempo, alertas oficiais, monitoramento do Rio dos Sinos e acompanhamento de eventos extremos.")
+    st.markdown('<span class="header-status">Dados meteorológicos e fontes oficiais</span>', unsafe_allow_html=True)
+with hero_right:
+    st.markdown(
+        '<div class="hero-clock"><div class="time">' + now_local.strftime("%H:%M") +
+        '</div><div class="date">' + now_local.strftime("%A · %d/%m/%Y") + '</div></div>',
+        unsafe_allow_html=True
+    )
 
-station = st.selectbox("Localização", list(STATIONS.keys()))
-if st.button("↻ Atualizar agora"):
-    get_weather.clear(); get_river_feed.clear()
+control_left, control_right = st.columns([3, 1], vertical_alignment="bottom")
+with control_left:
+    station = st.selectbox("Localização", list(STATIONS.keys()), label_visibility="visible")
+with control_right:
+    if st.button("↻ Atualizar dados", use_container_width=True):
+        get_weather.clear()
+        get_river_feed.clear()
+        get_river_history.clear()
+        get_inmet_alerts.clear()
+        get_chm_notices.clear()
+        st.rerun()
 
 try:
     data = get_weather(station)
     save_cached(station, data)
-    source_note = "Dados em tempo real"
+    source_note = "Dados atualizados pela Open-Meteo"
 except Exception as error:
     data = load_cached(station)
     if not data:
         st.error(f"Não foi possível carregar os dados meteorológicos: {error}")
         st.stop()
     source_note = "Últimos dados guardados localmente"
-    st.warning("A API não respondeu agora; a mostrar a última previsão guardada.")
+    st.warning("A API não respondeu agora; exibindo a última previsão guardada.")
 
-now_local = datetime.now(LOCAL_TZ)
-st.success(f"{source_note} · atualizado {now_local.strftime('%d/%m/%Y %H:%M')} ({LOCAL_TZ_LABEL})")
 current, daily, hourly = data["current"], data["daily"], data["hourly"]
 condition = WMO.get(current.get("weather_code", 0), "Condição desconhecida")
+st.caption(f"{source_note} · consulta em {now_local.strftime('%d/%m/%Y %H:%M')} · horário de Brasília")
 
-st.subheader(f"Agora em {station}")
-cols = st.columns(5)
-with cols[0]: card("Temperatura", f"{current['temperature_2m']:.1f} °C", condition)
-with cols[1]: card("Sensação", f"{current['apparent_temperature']:.1f} °C", "temperatura aparente")
-with cols[2]: card("Humidade", f"{current['relative_humidity_2m']:.0f}%", "humidade relativa")
-with cols[3]: card("Vento", f"{current['wind_speed_10m']:.0f} km/h", f"{format_wind(current['wind_direction_10m'])} · rajadas {current['wind_gusts_10m']:.0f} km/h")
-with cols[4]: card("Pressão", f"{current['pressure_msl']:.0f} hPa", f"nuvens {current['cloud_cover']:.0f}%")
+tab_now, tab_forecast, tab_events, tab_river, tab_enso = st.tabs([
+    "☀️  Agora", "📅  Previsão", "🌪️  Eventos extremos", "🌊  Rio e bacia", "🌎  ENOS"
+])
 
-st.subheader("Alertas")
-alerts = compute_alerts(data)
-if alerts:
-    for title, detail in alerts[:8]: st.warning(f"**{title}** — {detail}")
-else: st.info("Nenhum alerta automático identificado para os próximos dias.")
+with tab_now:
+    st.subheader(f"Condições atuais — {station}")
+    metric_cols = st.columns(5, gap="medium")
+    with metric_cols[0]:
+        card("Temperatura", f"{current['temperature_2m']:.1f} °C", condition)
+    with metric_cols[1]:
+        card("Sensação térmica", f"{current['apparent_temperature']:.1f} °C", "temperatura aparente")
+    with metric_cols[2]:
+        card("Umidade", f"{current['relative_humidity_2m']:.0f}%", "umidade relativa")
+    with metric_cols[3]:
+        card("Vento", f"{current['wind_speed_10m']:.0f} km/h", f"{format_wind(current['wind_direction_10m'])} · rajadas {current['wind_gusts_10m']:.0f} km/h")
+    with metric_cols[4]:
+        card("Pressão", f"{current['pressure_msl']:.0f} hPa", f"nuvens {current['cloud_cover']:.0f}%")
 
-st.subheader("Chuva acumulada e vento")
-a, b = st.columns(2)
-with a:
-    rain_today = daily["precipitation_sum"][0]
-    prob3 = max(hourly.get("precipitation_probability", [0])[:3])
-    card("Chuva hoje", f"{rain_today:.1f} mm", f"probabilidade nas próximas 3h: {prob3}%")
-with b:
-    card("Rajada máxima prevista", f"{max(daily['wind_gusts_10m_max']):.0f} km/h", "nos próximos 15 dias")
+    st.divider()
+    st.subheader("Resumo de riscos previstos")
+    alerts = compute_alerts(data)
+    if alerts:
+        for title, detail in alerts[:8]:
+            if "severas" in title.lower() or "muito forte" in title.lower() or "granizo" in title.lower():
+                st.warning(f"**{title}** — {detail}")
+            else:
+                st.info(f"**{title}** — {detail}")
+    else:
+        st.success("Nenhum risco automático de chuva intensa, granizo ou rajadas fortes identificado nos próximos dias.")
+    a, b = st.columns(2, gap="large")
+    with a:
+        rain_today = daily["precipitation_sum"][0]
+        prob3 = max(hourly.get("precipitation_probability", [0])[:3])
+        card("Chuva prevista hoje", f"{rain_today:.1f} mm", f"probabilidade nas próximas 3h: {prob3}%")
+    with b:
+        card("Maior rajada prevista", f"{max(daily['wind_gusts_10m_max']):.0f} km/h", "máximo do horizonte de 15 dias; não é medição atual")
 
-st.subheader("Próximas 24 horas")
-st.caption(f"Horários apresentados em {LOCAL_TZ_LABEL} (UTC−03:00).")
-now = pd.Timestamp.now(tz=LOCAL_TZ).tz_localize(None)
-hour_df = pd.DataFrame({"Hora": pd.to_datetime(hourly["time"]), "Temperatura": hourly["temperature_2m"], "Chuva (mm)": hourly["precipitation"], "Prob. chuva (%)": hourly["precipitation_probability"], "Condição": [WMO.get(c, "—") for c in hourly["weather_code"]]})
-hour_df = hour_df[hour_df["Hora"] >= now].head(24).copy()
-hour_df["Hora"] = hour_df["Hora"].dt.strftime("%H:%M")
-st.dataframe(hour_df, use_container_width=True, hide_index=True)
+with tab_forecast:
+    st.subheader("Próximas 24 horas")
+    st.caption("Horários apresentados em America/Sao_Paulo (UTC−03:00).")
+    now = pd.Timestamp.now(tz=LOCAL_TZ).tz_localize(None)
+    hour_df = pd.DataFrame({
+        "Hora": pd.to_datetime(hourly["time"]),
+        "Temperatura (°C)": hourly["temperature_2m"],
+        "Chuva (mm)": hourly["precipitation"],
+        "Prob. chuva (%)": hourly["precipitation_probability"],
+        "Condição": [WMO.get(c, "—") for c in hourly["weather_code"]],
+    })
+    hour_df = hour_df[hour_df["Hora"] >= now].head(24).copy()
+    hour_df["Hora"] = hour_df["Hora"].dt.strftime("%H:%M")
+    st.dataframe(hour_df, use_container_width=True, hide_index=True)
 
-st.subheader("Previsão de 15 dias")
-st.caption(f"Datas e horários da previsão em {LOCAL_TZ_LABEL} (UTC−03:00).")
-days = pd.DataFrame({"Data": pd.to_datetime(daily["time"]).strftime("%d/%m"), "Condição": [WMO.get(c, "—") for c in daily["weather_code"]], "Máxima (°C)": [round(x, 1) for x in daily["temperature_2m_max"]], "Mínima (°C)": [round(x, 1) for x in daily["temperature_2m_min"]], "Chuva (mm)": [round(x, 1) for x in daily["precipitation_sum"]], "Prob. chuva (%)": daily["precipitation_probability_max"]})
-st.dataframe(days, use_container_width=True, hide_index=True)
-st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#5b9bc4")
+    st.divider()
+    st.subheader("Previsão de 15 dias")
+    days = pd.DataFrame({
+        "Data": pd.to_datetime(daily["time"]).strftime("%d/%m"),
+        "Condição": [WMO.get(c, "—") for c in daily["weather_code"]],
+        "Máxima (°C)": [round(x, 1) for x in daily["temperature_2m_max"]],
+        "Mínima (°C)": [round(x, 1) for x in daily["temperature_2m_min"]],
+        "Chuva (mm)": [round(x, 1) for x in daily["precipitation_sum"]],
+        "Prob. chuva (%)": daily["precipitation_probability_max"],
+    })
+    chart_left, chart_right = st.columns([1.2, 1], gap="large")
+    with chart_left:
+        st.markdown("#### Chuva prevista por dia")
+        st.bar_chart(days.set_index("Data")[["Chuva (mm)"]], color="#69b8e2")
+    with chart_right:
+        st.markdown("#### Temperaturas")
+        temp_df = pd.DataFrame({
+            "Máxima": daily["temperature_2m_max"],
+            "Mínima": daily["temperature_2m_min"],
+        }, index=days["Data"])
+        st.line_chart(temp_df, color=["#f2b84b", "#69b8e2"])
+    st.dataframe(days, use_container_width=True, hide_index=True)
 
-render_river(data)
-render_basin_analysis(data)
-render_regional_impact()
-render_official_sources()
-render_enso()
+with tab_events:
+    render_extreme_event_monitors()
+    st.divider()
+    st.subheader("Risco previsto na estação selecionada")
+    st.caption("Estes são indicadores de previsão do modelo meteorológico, não avisos oficiais de tornado ou ciclone.")
+    risk_data = []
+    for i, day in enumerate(daily["time"][:15]):
+        rain = float(daily["precipitation_sum"][i])
+        gust = float(daily["wind_gusts_10m_max"][i])
+        code = int(daily["weather_code"][i])
+        risk_data.append({
+            "Data": pd.to_datetime(day).strftime("%d/%m"),
+            "Condição": WMO.get(code, "—"),
+            "Chuva (mm)": round(rain, 1),
+            "Rajada (km/h)": round(gust, 1),
+            "Granizo/raios": "Sim" if code in (95, 96, 99) else "Não indicado",
+        })
+    st.dataframe(pd.DataFrame(risk_data), use_container_width=True, hide_index=True)
 
-st.markdown('<footer>Sobre a precisão: este boletim usa o modelo aberto Open-Meteo. Para eventos de chuva forte, vento ou frente fria, confira também os boletins oficiais da Defesa Civil, INMET, ClimaRS e MetSul.</footer>', unsafe_allow_html=True)
+with tab_river:
+    render_river(data)
+    render_basin_analysis(data)
+    render_regional_impact()
+    render_official_sources()
+
+with tab_enso:
+    render_enso()
+
+st.markdown(
+    '<footer>Estação do Vale · Novo Hamburgo e Lomba Grande · Open-Meteo, INMET, Marinha/CHM, Nível Guaíba e NOAA/CPC. '
+    'Em situações de risco, siga as orientações oficiais da Defesa Civil e dos órgãos meteorológicos.</footer>',
+    unsafe_allow_html=True
+)
