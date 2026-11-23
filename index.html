@@ -1496,42 +1496,76 @@ async function loadTornadoMonitor(){
 async function loadCycloneMonitor(){
   const box = document.getElementById('cycloneDetails');
   if(!box) return;
-  setHazardState('cycloneState','', 'Consultando Marinha…');
-  try{
-    const response = await fetch(API_BASE + '/cyclone-alerts', {cache:'no-store'});
-    if(!response.ok) throw new Error('CHM HTTP ' + response.status);
-    const data = await response.json();
-    const alerts = data.alerts || [];
-    const active = alerts.filter(function(a){ return a.status === 'active'; });
-    const scheduled = alerts.filter(function(a){ return a.status === 'scheduled' || a.status === 'unconfirmed'; });
+  setHazardState('cycloneState','', 'Consultando Marinha e INMET…');
 
-    if(active.length){
-      setHazardState('cycloneState','active','Aviso vigente do CHM');
-      box.innerHTML = active.slice(0,4).map(function(a){
-        const valid = a.validUntil ? new Date(a.validUntil).toLocaleString('pt-BR') : 'Vigência não identificada';
-        return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
-          '<div class="hazard-entry-meta"><span>Aviso ' + escapeMonitorText(a.number) + '</span><span>Válido até ' + escapeMonitorText(valid) + '</span></div>' +
-          '<div class="hazard-entry-meta">' + escapeMonitorText(a.area || a.summary || '') + '</div>' +
-          '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Abrir aviso da Marinha ↗</a></div>';
-      }).join('');
-    }else if(scheduled.length){
-      setHazardState('cycloneState','attention','Aviso localizado · conferir vigência');
-      box.innerHTML = scheduled.slice(0,3).map(function(a){
-        return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
-          '<div class="hazard-entry-meta"><span>Aviso ' + escapeMonitorText(a.number) + '</span><span>' + escapeMonitorText(a.status === 'scheduled' ? 'Vigência futura' : 'Vigência não identificada') + '</span></div>' +
-          '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Conferir na fonte ↗</a></div>';
-      }).join('');
-    }else{
-      setHazardState('cycloneState','clear','Sem aviso especial de ciclone');
-      box.innerHTML = '<div class="hazard-empty">A consulta aos avisos vigentes do CHM não encontrou, nesta atualização, aviso especial ativo mencionando ciclone tropical ou subtropical na METAREA V. Ciclones extratropicais podem aparecer em boletins e avisos de vento/tempo severo sem receber esta classificação.</div>';
+  const results = await Promise.allSettled([
+    fetch(API_BASE + '/cyclone-alerts', {cache:'no-store'}),
+    fetch(API_BASE + '/inmet-alerts', {cache:'no-store'})
+  ]);
+
+  let chmData = null;
+  let inmetData = null;
+  let chmOk = false;
+  let inmetOk = false;
+
+  try{
+    if(results[0].status === 'fulfilled' && results[0].value.ok){
+      chmData = await results[0].value.json();
+      chmOk = true;
     }
-    const stamp = data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
-    if(stamp) box.insertAdjacentHTML('beforeend','<div class="hazard-entry-meta">Consulta CHM: ' + escapeMonitorText(stamp) + '</div>');
-  }catch(error){
-    console.warn('Monitor de ciclones indisponível:', error);
-    setHazardState('cycloneState','unavailable','Fonte temporariamente indisponível');
-    box.innerHTML = '<div class="hazard-empty">Não foi possível consultar os avisos da Marinha agora. O painel não vai presumir ausência de ciclones. Consulte os <a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">avisos vigentes do CHM</a>.</div>';
+  }catch(error){ console.warn('Resposta do CHM inválida:', error); }
+
+  try{
+    if(results[1].status === 'fulfilled' && results[1].value.ok){
+      inmetData = await results[1].value.json();
+      inmetOk = true;
+    }
+  }catch(error){ console.warn('Resposta do INMET inválida:', error); }
+
+  if(!chmOk && !inmetOk){
+    setHazardState('cycloneState','unavailable','Fontes temporariamente indisponíveis');
+    box.innerHTML = '<div class="hazard-empty">Não foi possível consultar a Marinha nem o INMET. O painel não vai presumir ausência de ciclones. Consulte os <a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">avisos vigentes do CHM</a> e os <a href="https://avisos.inmet.gov.br/" target="_blank" rel="noopener">avisos do INMET</a>.</div>';
+    return;
   }
+
+  const chmAlerts = chmOk && chmData ? (chmData.alerts || []) : [];
+  const activeChm = chmAlerts.filter(function(a){ return a.status === 'active'; });
+  const scheduledChm = chmAlerts.filter(function(a){ return a.status === 'scheduled' || a.status === 'unconfirmed'; });
+  const inmetCyclones = inmetOk && inmetData
+    ? (inmetData.alerts || []).filter(function(a){ return a.type === 'ciclone' && isLocalInmetAlert(a); })
+    : [];
+  const partial = !chmOk || !inmetOk;
+
+  if(activeChm.length || inmetCyclones.length){
+    setHazardState('cycloneState',partial ? 'attention' : 'active',partial ? 'Aviso encontrado · consulta parcial' : 'Aviso de ciclone identificado');
+    const chmHtml = activeChm.slice(0,3).map(function(a){
+      const valid = a.validUntil ? new Date(a.validUntil).toLocaleString('pt-BR') : 'Vigência não identificada';
+      return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
+        '<div class="hazard-entry-meta"><span>Marinha · aviso ' + escapeMonitorText(a.number) + '</span><span>Válido até ' + escapeMonitorText(valid) + '</span></div>' +
+        '<div class="hazard-entry-meta">' + escapeMonitorText(a.area || a.summary || '') + '</div>' +
+        '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Abrir aviso da Marinha ↗</a></div>';
+    }).join('');
+    const inmetHtml = inmetCyclones.slice(0,3).map(monitorEntry).join('');
+    box.innerHTML = chmHtml + inmetHtml;
+  }else if(scheduledChm.length){
+    setHazardState('cycloneState','attention','Aviso localizado · conferir vigência');
+    box.innerHTML = scheduledChm.slice(0,3).map(function(a){
+      return '<div class="hazard-entry"><div class="hazard-entry-title">' + escapeMonitorText(a.title) + '</div>' +
+        '<div class="hazard-entry-meta"><span>Marinha · aviso ' + escapeMonitorText(a.number) + '</span><span>' + escapeMonitorText(a.status === 'scheduled' ? 'Vigência futura' : 'Vigência não identificada') + '</span></div>' +
+        '<a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Conferir na fonte ↗</a></div>';
+    }).join('');
+  }else if(partial){
+    setHazardState('cycloneState','attention','Consulta parcial');
+    box.innerHTML = '<div class="hazard-empty">Uma das fontes oficiais não respondeu. Nas fontes consultadas com sucesso, não foi encontrado aviso específico de ciclone. Consulte também os links oficiais abaixo.</div>';
+  }else{
+    setHazardState('cycloneState','clear','Sem aviso especial de ciclone');
+    box.innerHTML = '<div class="hazard-empty">A consulta aos avisos vigentes do CHM e do INMET não encontrou, nesta atualização, aviso específico de ciclone para a região. O CHM cobre avisos marítimos tropicais/subtropicais; ciclones extratropicais também podem aparecer em avisos gerais de vento e tempo severo.</div>';
+  }
+
+  const stamps = [];
+  if(chmOk && chmData && chmData.fetchedAt) stamps.push('CHM ' + new Date(chmData.fetchedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  if(inmetOk && inmetData && inmetData.fetchedAt) stamps.push('INMET ' + new Date(inmetData.fetchedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  if(stamps.length) box.insertAdjacentHTML('beforeend','<div class="hazard-entry-meta">Consultas: ' + escapeMonitorText(stamps.join(' · ')) + '</div>');
 }
 
 async function loadHazardMonitors(){
