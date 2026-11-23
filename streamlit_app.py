@@ -543,7 +543,8 @@ def get_chm_notices():
                     expires = _chm_utc_datetime(validity.group(1), validity.group(2), month, issue_year, issue_day)
                 if start_at:
                     starts = _chm_utc_datetime(start_at.group(1), start_at.group(2), month, issue_year, issue_day)
-        active = (expires is None or expires >= now_utc) and (starts is None or starts <= now_utc)
+        active = bool(expires is not None and expires >= now_utc and (starts is None or starts <= now_utc))
+        expired = bool(expires is not None and expires < now_utc)
         lines = [line.strip() for line in block.splitlines() if line.strip()]
         notices.append({
             "number": header.group(1),
@@ -573,7 +574,8 @@ def _render_monitor_item(item, source):
         '</div></div>', unsafe_allow_html=True
     )
     if item.get("link"):
-        st.markdown(f"[Abrir aviso oficial — {source} ↗]({item['link']})")
+        target = item["link"] if item["link"].startswith("https://apiprevmet3.inmet.gov.br/") else "https://avisos.inmet.gov.br/"
+        st.markdown(f"[Abrir aviso oficial — {source} ↗]({target})")
 
 def render_extreme_event_monitors():
     st.markdown("### Tornados e ciclones")
@@ -624,7 +626,9 @@ def render_extreme_event_monitors():
             inmet = []
             inmet_error = str(error)
 
-        chm_active_cyclones = [a for a in chm if a["active"] and re.search(r"ciclone|ciclon|subtropical|tropical", a["text"], re.I)]
+        chm_cyclone_notices = [a for a in chm if not a["expired"] and re.search(r"ciclone|ciclon|subtropical|tropical", a["text"], re.I)]
+        chm_active_cyclones = [a for a in chm_cyclone_notices if a["active"]]
+        chm_unconfirmed_cyclones = [a for a in chm_cyclone_notices if a["unconfirmed"]]
         inmet_cyclones = [a for a in inmet if a["local"] and a["type"] == "ciclone"]
 
         if chm_active_cyclones or inmet_cyclones:
@@ -640,6 +644,12 @@ def render_extreme_event_monitors():
             st.markdown('<span class="monitor-state state-offline">FONTES INDISPONÍVEIS</span>', unsafe_allow_html=True)
             st.error("Não foi possível consultar Marinha nem INMET. O painel não presume ausência de ciclone.")
             st.caption(f"CHM: {chm_error} · INMET: {inmet_error}")
+        elif chm_unconfirmed_cyclones:
+            st.markdown('<span class="monitor-state state-warn">AVISO LOCALIZADO · VIGÊNCIA NÃO CONFIRMADA</span>', unsafe_allow_html=True)
+            st.warning("A página do CHM contém texto relacionado a ciclone, mas não foi possível validar automaticamente o horário de expiração. Confira o aviso original antes de tratá-lo como vigente.")
+            for item in chm_unconfirmed_cyclones[:3]:
+                st.caption(f"CHM aviso {item['number']} · {item['title']}")
+                st.markdown("[Conferir aviso oficial ↗](" + CHM_WARNINGS_URL + ")")
         elif chm_error or inmet_error:
             st.markdown('<span class="monitor-state state-warn">CONSULTA PARCIAL</span>', unsafe_allow_html=True)
             st.warning("Uma das fontes oficiais não respondeu. Consulte os avisos originais antes de concluir que não há risco.")
