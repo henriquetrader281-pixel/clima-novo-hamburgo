@@ -21,6 +21,8 @@ jobs:
           for file in api/*.js api/_lib/*.js; do
             node --input-type=module --check < "$file"
           done
+      - name: Check Streamlit Python syntax
+        run: python -m py_compile streamlit_app.py
       - name: Check inline browser scripts
         run: |
           python - <<'PY'
