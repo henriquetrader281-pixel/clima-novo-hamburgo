@@ -6,14 +6,14 @@ const STATES = { RS: [-30.1, -53.0], SC: [-27.2, -50.2], PR: [-24.7, -51.5] };
 
 function clean(value = '') {
   return value
-    .replace(/<!\\[CDATA\\[|\\]\\]>/g, '')
+    .replace(/<!\[CDATA\[|\]\]>/g, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/\\s+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -32,7 +32,7 @@ function classify(title, description) {
 
 function severity(title, description) {
   const text = `${title} ${description}`;
-  const match = text.match(/(Grande\\s+Perigo|Perigo\\s+Potencial|Perigo)/i);
+  const match = text.match(/(Grande\s+Perigo|Perigo\s+Potencial|Perigo)/i);
   if (!match) return 'Não informada';
   const value = match[1].toLowerCase();
   return value === 'grande perigo' ? 'Grande Perigo'
@@ -41,7 +41,7 @@ function severity(title, description) {
 
 function coordinates(text) {
   const upper = text.toUpperCase();
-  const state = Object.keys(STATES).find(code => new RegExp(`\\\\b${code}\\\\b`).test(upper));
+  const state = Object.keys(STATES).find(code => new RegExp(`\\b${code}\\b`).test(upper));
   if (/NOVO HAMBURGO|LOMBA GRANDE|SÃO LEOPOLDO|SAO LEOPOLDO|CAMPO BOM|SAPIRANGA|ESTÂNCIA VELHA|IVOTI/.test(upper)) {
     return { lat: LOCAL.lat, lon: LOCAL.lon, precision: 'local' };
   }
@@ -59,15 +59,15 @@ export default async function handler(req, res) {
     if (!response.ok) return json(res, 502, { error: 'inmet_unavailable', source: RSS_URL });
 
     const xml = await response.text();
-    const alerts = [...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/gi)].map(match => {
+    const alerts = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(match => {
       const block = match[1];
-      const title = clean(block.match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1]);
-      const description = clean(block.match(/<description>([\\s\\S]*?)<\\/description>/i)?.[1]);
+      const title = clean(block.match(/<title>([\s\S]*?)<\/title>/i)?.[1]);
+      const description = clean(block.match(/<description>([\s\S]*?)<\/description>/i)?.[1]);
       const type = classify(title, description);
       if (!type) return null;
 
-      const link = clean(block.match(/<link>([\\s\\S]*?)<\\/link>/i)?.[1]);
-      const publishedAt = clean(block.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/i)?.[1]);
+      const link = clean(block.match(/<link>([\s\S]*?)<\/link>/i)?.[1]);
+      const publishedAt = clean(block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1]);
       const location = coordinates(`${title} ${description}`);
       return {
         title, description, type, link, publishedAt,
