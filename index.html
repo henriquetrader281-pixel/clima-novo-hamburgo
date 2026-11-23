@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Estação do Vale — Novo Hamburgo &amp; Lomba Grande</title>
-<meta name="theme-color" content="#0f1c26">
-<meta name="description" content="Previsão do tempo, alertas meteorológicos e monitoramento do Rio dos Sinos.">
+<meta name="theme-color" content="#071521">
+<meta name="description" content="Previsão do tempo, alertas oficiais de eventos extremos e monitoramento do Rio dos Sinos para Novo Hamburgo e Lomba Grande.">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -365,16 +365,189 @@
   .leaflet-popup-content{ font:12px Inter,sans-serif; line-height:1.45; }
   .leaflet-control-layers{ font:11px Inter,sans-serif; }
 
+
+:root{--navy-950:#071521;--navy-900:#0d2130;--navy-800:#142d40;--navy-700:#1d4058;--slate-400:#91a9b8;--slate-200:#d2e0e7;--paper:#f4f8f7;--rain-blue:#69b8e2;--rain-blue-dim:#376d8e;--gold:#f2b84b;--gold-dim:#bf8730;--line:rgba(178,207,222,.14)}
+html{scroll-behavior:smooth;scroll-padding-top:108px}
+body{background:radial-gradient(ellipse 760px 520px at 8% -8%,rgba(47,129,174,.22),transparent 65%),radial-gradient(ellipse 650px 420px at 98% 10%,rgba(242,184,75,.10),transparent 62%),linear-gradient(145deg,#071521 0%,#0a1c2a 48%,#091927 100%);background-attachment:fixed;letter-spacing:-.01em}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.16;background-image:linear-gradient(rgba(180,210,225,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(180,210,225,.035) 1px,transparent 1px);background-size:42px 42px}
+.wrap{max-width:1360px;padding:30px clamp(16px,3vw,44px) 76px}
+header{align-items:center;gap:24px;padding:0 0 26px;margin-bottom:22px;border-bottom:1px solid rgba(178,207,222,.18)}
+header>div:first-child{max-width:900px}
+.brand-eyebrow{display:flex;align-items:center;gap:9px;color:#8bc9e8;font-size:10px;letter-spacing:.2em}
+.brand-eyebrow:before{content:"";width:24px;height:2px;background:var(--gold);border-radius:9px}
+h1{font-size:clamp(27px,3.3vw,43px);font-weight:700;letter-spacing:-.045em;line-height:1.12}
+.subtitle{max-width:70ch;color:#9cb2bf;font-size:13px;line-height:1.7;margin-top:9px}
+.header-status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:7px 11px;border:1px solid rgba(105,184,226,.22);border-radius:999px;background:rgba(40,105,140,.13);color:#b8d8e8;font:10px var(--font-mono);letter-spacing:.1em;text-transform:uppercase}
+.header-status .status-led{width:7px;height:7px;border-radius:50%;background:#65d6a3;box-shadow:0 0 0 4px rgba(101,214,163,.12)}
+.clock{min-width:164px;text-align:right;padding:13px 17px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,rgba(19,47,66,.9),rgba(10,29,43,.72));box-shadow:0 14px 34px rgba(0,0,0,.16)}
+.clock .big{font-size:27px;font-weight:600;letter-spacing:-.04em}
+#clockDate{font:10px var(--font-mono);color:var(--slate-400);margin-top:3px;text-transform:capitalize}
+.station-select{gap:10px;margin:0 0 14px}
+.station-btn{padding:11px 17px;border-radius:999px;border-color:rgba(178,207,222,.16);background:rgba(13,33,48,.76);font-size:11px;letter-spacing:.01em;transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease}
+.station-btn:hover{transform:translateY(-1px);border-color:rgba(105,184,226,.65)}
+.station-btn.active{color:#fff;border-color:rgba(242,184,75,.72);background:linear-gradient(135deg,rgba(38,77,101,.95),rgba(20,48,67,.95));box-shadow:0 6px 22px rgba(0,0,0,.16)}
+.station-btn.active .dot{background:var(--gold);box-shadow:0 0 0 4px rgba(242,184,75,.12),0 0 12px var(--gold)}
+.quick-nav{position:sticky;top:10px;z-index:900;display:flex;align-items:center;gap:6px;width:max-content;max-width:100%;overflow-x:auto;margin:0 0 24px;padding:7px;border:1px solid rgba(178,207,222,.15);border-radius:999px;background:rgba(7,21,33,.84);backdrop-filter:blur(18px);box-shadow:0 10px 30px rgba(0,0,0,.18);scrollbar-width:none}
+.quick-nav::-webkit-scrollbar{display:none}
+.quick-nav a{flex:0 0 auto;padding:9px 14px;border-radius:999px;color:#a8bfcb;text-decoration:none;font:10px var(--font-mono)}
+.quick-nav a:hover,.quick-nav a:focus-visible{background:rgba(105,184,226,.14);color:#fff;outline:none}
+.skip-link{position:absolute;left:16px;top:-60px;z-index:2000;padding:10px 14px;border-radius:10px;background:#fff;color:#071521;font-weight:700}
+.skip-link:focus{top:12px}
+.status-msg{min-height:100px;padding:34px 18px;border:1px solid var(--line);border-radius:18px;background:rgba(13,33,48,.72);font-size:12px}
+#content.show{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px;align-items:start}
+#content>.alerts-row,#content>.hazard-section,#content>.day-label,#content>.now-panel,#content>.dual-panel,#content>.days-grid,#content>.days-caption,#content>.validate-note,#content>footer,#content>.hourly-card{grid-column:1/-1;min-width:0}
+.alerts-row{gap:9px;margin:0}
+.alert-chip{padding:10px 14px;border-radius:12px;background:rgba(13,33,48,.88);box-shadow:0 8px 24px rgba(0,0,0,.10);font-size:10px}
+.day-label{margin:2px 0 -7px;font-size:10px;letter-spacing:.16em;color:#8db7cc}
+.now-panel{grid-template-columns:1.15fr 1fr;border:1px solid rgba(142,190,211,.19);border-radius:24px;overflow:hidden;gap:1px;margin:0;background:rgba(105,184,226,.12);box-shadow:0 18px 48px rgba(0,0,0,.20)}
+.now-main{position:relative;overflow:hidden;min-height:218px;padding:32px clamp(22px,4vw,52px);gap:clamp(14px,3vw,30px);background:radial-gradient(circle at 14% 50%,rgba(105,184,226,.18),transparent 45%),linear-gradient(135deg,#15384e,#0d2435 72%)}
+.now-main:after{content:"";position:absolute;width:250px;height:250px;right:-90px;top:-100px;border:1px solid rgba(177,219,237,.11);border-radius:50%;box-shadow:0 0 0 24px rgba(177,219,237,.025),0 0 0 52px rgba(177,219,237,.02)}
+.now-icon{position:relative;z-index:1;width:clamp(70px,8vw,100px);height:clamp(70px,8vw,100px);filter:drop-shadow(0 8px 18px rgba(0,0,0,.22))}
+.now-main>div{position:relative;z-index:1}
+.now-temp{font-size:clamp(62px,7vw,90px);letter-spacing:-.075em;font-weight:700}
+.now-desc{font-size:15px;font-weight:600;color:#e4f1f5}
+.now-feels{font-size:10px;letter-spacing:.12em;margin-top:9px;color:#9bb7c7}
+.now-stats{background:rgba(11,31,46,.98);grid-template-columns:1fr 1fr}
+.stat-cell{display:flex;flex-direction:column;justify-content:center;min-height:108px;padding:17px 22px;border-left:1px solid rgba(178,207,222,.10);border-bottom:1px solid rgba(178,207,222,.10)}
+.stat-label{font-size:9px;letter-spacing:.14em;color:#8ca9b9}
+.stat-value{font-size:21px;font-weight:600;letter-spacing:-.035em}
+.dual-panel{gap:16px;margin:0}
+.card{position:relative;background:linear-gradient(145deg,rgba(16,41,59,.96),rgba(10,29,43,.96));border:1px solid rgba(178,207,222,.14);border-radius:20px;padding:22px 24px;box-shadow:0 14px 34px rgba(0,0,0,.12);transition:border-color .2s ease,transform .2s ease}
+.card:hover{border-color:rgba(105,184,226,.28)}
+.card-title{color:#86c8e8;font-size:10px;letter-spacing:.16em;margin-bottom:17px}
+.gauge-num{font-size:40px;letter-spacing:-.05em}
+.hourly-card{margin:0!important}
+.hourly-scroll{gap:7px;margin-top:3px;padding:3px 2px 10px}
+.hour-col{min-width:66px;padding:13px 7px;border:1px solid transparent;border-radius:14px;gap:10px}
+.hour-col.now{background:rgba(242,184,75,.10);border-color:rgba(242,184,75,.32)}
+.hour-temp{font-size:15px;font-weight:600}
+.days-grid{gap:7px;background:transparent;border:0;border-radius:0;overflow-x:auto;margin:0;padding:2px 1px 9px}
+.day-col{flex:1 0 76px;min-width:76px;padding:15px 9px 14px;border:1px solid rgba(178,207,222,.12);border-radius:16px;background:linear-gradient(145deg,rgba(19,46,64,.98),rgba(10,29,43,.96));gap:8px}
+.day-col:hover{background:#18394f;transform:translateY(-2px)}
+.day-col.active{background:linear-gradient(145deg,#244c65,#16364d);border:1px solid rgba(242,184,75,.58);border-bottom:2px solid var(--gold);box-shadow:0 8px 20px rgba(0,0,0,.13)}
+.days-caption{margin:-10px 0 0;font-size:10px;line-height:1.6}
+#content>.river-card{grid-column:span 7;min-width:0}
+#content>.weather-map-card{grid-column:span 5;min-width:0}
+#content>.enso-card{grid-column:1/-1;min-width:0}
+.river-card,.weather-map-card{margin:0}
+.river-stations{border-radius:14px}
+.river-station{padding:17px}
+.river-station-level{font-size:30px}
+.river-spark-box{border-radius:14px}
+.river-table{margin:8px 0 17px}
+.river-table th,.river-table td{padding:12px 10px}
+.river-table th{font-size:9px}
+.river-table td{font-size:11px}
+.river-link{padding:9px 12px;border-radius:999px;font-size:10px;background:rgba(7,21,33,.32)}
+#weatherMap{height:430px;margin-top:16px;border-radius:15px;border:1px solid rgba(178,207,222,.16)}
+.leaflet-control-layers{border:1px solid rgba(178,207,222,.24)!important;border-radius:10px!important;box-shadow:0 4px 12px rgba(0,0,0,.18)!important}
+.enso-phase-badge{border-radius:999px}
+.enso-region-chip{border-radius:12px;padding:13px 16px}
+.validate-note{border-radius:16px;padding:18px 21px;background:linear-gradient(110deg,rgba(40,62,72,.68),rgba(13,33,48,.88));font-size:12px}
+footer{padding:16px 2px 0;border-top:1px solid var(--line);font-size:10px}
+.refresh-btn,.retry-btn,.river-notify-btn{border-radius:999px;padding:10px 15px;transition:all .2s ease}
+.refresh-btn:hover,.retry-btn:hover,.river-notify-btn:hover{background:rgba(105,184,226,.10);border-color:var(--rain-blue)}
+.hazard-section{min-width:0}
+.section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin:2px 0 14px}
+.section-kicker{font:10px var(--font-mono);letter-spacing:.16em;text-transform:uppercase;color:#82bedb;margin-bottom:6px}
+.section-heading h2{font:700 clamp(22px,2.6vw,29px) var(--font-display);letter-spacing:-.04em;color:#f1f7f7}
+.section-heading p{font-size:12px;line-height:1.55;color:var(--slate-400);margin-top:5px}
+.monitor-refresh{flex:0 0 auto;border:1px solid rgba(105,184,226,.28);border-radius:999px;background:rgba(105,184,226,.08);color:#cce8f5;padding:10px 15px;font:10px var(--font-mono);cursor:pointer}
+.monitor-refresh:hover{background:rgba(105,184,226,.16);border-color:var(--rain-blue)}
+.hazard-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.hazard-card{position:relative;min-width:0;overflow:hidden;padding:21px 23px 17px;border:1px solid rgba(178,207,222,.15);border-radius:20px;background:linear-gradient(145deg,rgba(15,40,58,.97),rgba(8,27,41,.97));box-shadow:0 14px 34px rgba(0,0,0,.13)}
+.hazard-card:after{content:"";position:absolute;right:-50px;top:-75px;width:190px;height:190px;border:1px solid rgba(178,207,222,.06);border-radius:50%;box-shadow:0 0 0 20px rgba(178,207,222,.018),0 0 0 42px rgba(178,207,222,.014);pointer-events:none}
+.hazard-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.hazard-symbol{display:grid;place-items:center;width:37px;height:37px;border-radius:12px;font-size:21px;font-weight:700}
+.tornado-symbol{color:#ffacb6;background:rgba(224,71,92,.13);border:1px solid rgba(224,71,92,.24)}
+.cyclone-symbol{color:#90d2ed;background:rgba(76,164,207,.13);border:1px solid rgba(76,164,207,.24)}
+.hazard-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;border:1px solid rgba(145,169,184,.18);background:rgba(145,169,184,.07);font:9px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#b9cbd4}
+.hazard-pill i{width:6px;height:6px;border-radius:50%;background:#91a9b8}
+.hazard-pill.active{color:#ffb9c2;border-color:rgba(224,71,92,.35);background:rgba(224,71,92,.10)}
+.hazard-pill.active i{background:#f36a7d;box-shadow:0 0 0 4px rgba(243,106,125,.12)}
+.hazard-pill.clear{color:#9ce0bd;border-color:rgba(101,214,163,.25);background:rgba(101,214,163,.08)}
+.hazard-pill.clear i{background:#65d6a3}
+.hazard-pill.attention{color:#ffd58a;border-color:rgba(242,184,75,.3);background:rgba(242,184,75,.09)}
+.hazard-pill.attention i{background:#f2b84b}
+.hazard-pill.unavailable{color:#ffb6a9;border-color:rgba(224,129,47,.3);background:rgba(224,129,47,.08)}
+.hazard-card h3{font:600 20px var(--font-display);letter-spacing:-.035em;color:#f0f6f7}
+.hazard-description{font-size:11px;line-height:1.6;color:#91a9b8;margin-top:6px;max-width:65ch}
+.hazard-results{margin:16px 0 13px;min-height:80px}
+.hazard-empty{padding:14px;border:1px dashed rgba(178,207,222,.17);border-radius:12px;color:#a5bac5;font-size:11px;line-height:1.6;background:rgba(7,21,33,.24)}
+.hazard-entry{padding:12px 13px;margin-top:8px;border-radius:12px;border:1px solid rgba(178,207,222,.13);background:rgba(7,21,33,.38)}
+.hazard-entry:first-child{margin-top:0}
+.hazard-entry-title{font-size:11px;font-weight:600;color:#edf5f6;line-height:1.45}
+.hazard-entry-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;color:#92adbb;font:9px var(--font-mono)}
+.hazard-entry a{display:inline-block;margin-top:8px;color:#8bc9e8;text-decoration:none;font:9px var(--font-mono)}
+.hazard-entry a:hover{text-decoration:underline;color:#fff}
+.hazard-source{border-top:1px solid rgba(178,207,222,.10);padding-top:12px;font-size:9px;color:#819baa;line-height:1.7}
+.hazard-source a{color:#9acde4;text-decoration:none}
+.hazard-source a:hover{text-decoration:underline}
+.hazard-disclaimer{margin:12px 2px 0;color:#7893a3;font-size:10px;line-height:1.65}
+#daysGrid,#previsao-hora,#visao-geral,#eventos-extremos,#rios,#mapa-tempo,#enso-monitor{scroll-margin-top:100px}
+button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media(max-width:1050px){#content>.river-card,#content>.weather-map-card{grid-column:1/-1}#weatherMap{height:390px}}
+@media(max-width:720px){
+ .wrap{padding:18px 13px 46px}
+ header{align-items:flex-start;gap:14px;padding-bottom:18px}
+ header>div:first-child{min-width:0}
+ h1{font-size:clamp(25px,7vw,34px)}
+ .subtitle{font-size:12px}
+ .clock{min-width:112px;padding:10px 12px}
+ .clock .big{font-size:22px}
+ #clockDate{font-size:8px;max-width:120px}
+ .quick-nav{width:100%;top:5px;margin-bottom:17px}
+ .quick-nav a{padding:9px 12px;font-size:9px}
+ .station-btn{flex:1;justify-content:center;padding:10px 9px;font-size:10px}
+ #content.show{gap:13px}
+ .now-panel{grid-template-columns:1fr;border-radius:19px}
+ .now-main{min-height:185px;padding:24px 20px}
+ .now-temp{font-size:68px}
+ .now-stats{grid-template-columns:1fr 1fr}
+ .stat-cell{min-height:88px;padding:13px 15px}
+ .stat-value{font-size:18px}
+ .dual-panel{grid-template-columns:1fr;gap:13px}
+ .card{padding:18px 17px;border-radius:17px}
+ .hour-col{min-width:60px}
+ .day-col{flex-basis:72px;min-width:72px;padding:13px 7px;border-radius:13px}
+ .hazard-grid{grid-template-columns:1fr}
+ .section-heading{align-items:flex-start;flex-direction:column}
+ .monitor-refresh{align-self:flex-start}
+ .hazard-card{padding:18px 17px;border-radius:17px}
+ #weatherMap{height:340px}
+ .river-stations{grid-template-columns:1fr 1fr}
+ .river-table{display:block;overflow-x:auto;white-space:nowrap}
+ .river-table th,.river-table td{padding:10px 8px}
+ .river-sub{font-size:11px}
+ .enso-stats-row{gap:15px}
+ footer{align-items:flex-start}
+}
+@media(max-width:420px){
+ .clock{min-width:94px;padding:9px}
+ .clock .big{font-size:20px}
+ .brand-eyebrow{font-size:9px}
+ .header-status{font-size:8px}
+ .now-icon{width:64px;height:64px}
+ .now-main{gap:12px}
+ .now-temp{font-size:60px}
+ .river-stations{grid-template-columns:1fr}
+ .river-links{display:grid;grid-template-columns:1fr}
+ .river-link{justify-content:center}
+ #weatherMap{height:300px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
 </style>
 </head>
 <body>
+<a class="skip-link" href="#visao-geral">Pular para o conteúdo</a>
 <div class="wrap">
 
   <header>
     <div>
       <div class="brand-eyebrow">Estação do Vale · Boletim local</div>
       <h1>Clima — Novo Hamburgo &amp; Lomba Grande</h1>
-      <div class="subtitle">Previsão de 15 dias, alertas de tempestade e granizo, e indicador de cheia do Rio dos Sinos — via Open-Meteo (dados abertos), atualizado a cada 15 minutos.</div>
+      <div class="subtitle">Previsão detalhada, alertas meteorológicos e monitoramento do Rio dos Sinos para Novo Hamburgo e Lomba Grande.</div><div class="header-status"><span class="status-led"></span>PAINEL METEOROLÓGICO LOCAL</div>
     </div>
     <div class="clock">
       <div class="big" id="clockTime">--:--</div>
@@ -386,6 +559,7 @@
     <button class="station-btn active" data-station="nh"><span class="dot"></span>Novo Hamburgo — Centro</button>
     <button class="station-btn" data-station="lg"><span class="dot"></span>Lomba Grande</button>
   </div>
+  <nav class="quick-nav" aria-label="Navegação do painel"><a href="#visao-geral">Agora</a><a href="#previsao-hora">Hora a hora</a><a href="#daysGrid">15 dias</a><a href="#eventos-extremos">Tornados e ciclones</a><a href="#rios">Rio dos Sinos</a><a href="#mapa-tempo">Mapa</a><a href="#enso-monitor">ENOS</a></nav>
 
   <div class="status-msg show" id="statusMsg">Sincronizando com a estação…</div>
 
@@ -395,7 +569,7 @@
 
     <div class="day-label" id="dayLabel">Agora — condições atuais</div>
 
-    <div class="now-panel">
+    <div class="now-panel" id="visao-geral">
       <div class="now-main">
         <svg class="now-icon" id="nowIcon" viewBox="0 0 64 64"></svg>
         <div>
@@ -450,7 +624,7 @@
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:18px;">
+    <div class="card hourly-card" id="previsao-hora" style="margin-bottom:18px;">
       <div class="card-title"><span id="hourlyTitle">Próximas 24 horas</span></div>
       <div class="hourly-scroll" id="hourlyScroll"></div>
     </div>
@@ -458,7 +632,7 @@
     <div class="days-grid" id="daysGrid"></div>
     <div class="days-caption">Previsão de 15 dias — dias 8 a 15 têm confiança menor (modelo de mais longo prazo), por isso aparecem esmaecidos.</div>
 
-    <div class="card river-card">
+    <div class="card river-card" id="rios">
       <div class="card-title" style="margin-bottom:14px;">Rio dos Sinos — monitoramento</div>
       <div class="river-alert" id="riverAlert" role="alert" aria-live="assertive">
         <div><div class="river-alert-title" id="riverAlertTitle"></div><div class="river-alert-detail" id="riverAlertDetail"></div></div>
@@ -524,7 +698,7 @@
     </div>
 
 
-    <div class="card weather-map-card">
+    <div class="card weather-map-card" id="mapa-tempo">
       <div class="weather-map-head">
         <div>
           <div class="card-title" style="margin-bottom:5px;">Mapa vivo — vento, tempestades e ENOS</div>
@@ -542,7 +716,7 @@
       <img id="ensoMapImage" class="enso-map-image" alt="Mapa mais recente de anomalia de temperatura da superfície do mar do ENOS, CPTEC/INPE">
       <div class="map-info" id="weatherMapInfo">Atualização automática a cada 10 minutos. Clique nos marcadores para detalhes.</div>
     </div>
-    <div class="card enso-card">
+    <div class="card enso-card" id="enso-monitor">
       <div class="enso-head">
         <div>
           <div class="card-title" style="margin-bottom:6px;">El Niño — Monitor ENOS 2026/2027</div>
