@@ -1,7 +1,7 @@
 import json
 import xml.etree.ElementTree as ET
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -480,6 +480,8 @@ def get_inmet_alerts():
         if expires:
             try:
                 expiry = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
                 valid = expiry >= datetime.now(timezone.utc)
             except ValueError:
                 pass
@@ -696,6 +698,7 @@ def render_enso():
 
 # ---------------- INTERFACE PRINCIPAL ----------------
 now_local = datetime.now(LOCAL_TZ)
+weekday_pt = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"][now_local.weekday()]
 hero_left, hero_right = st.columns([5, 1.15])
 with hero_left:
     st.markdown('<div class="caption-mono">ESTAÇÃO DO VALE · CENTRAL METEOROLÓGICA LOCAL</div>', unsafe_allow_html=True)
@@ -705,7 +708,7 @@ with hero_left:
 with hero_right:
     st.markdown(
         '<div class="hero-clock"><div class="time">' + now_local.strftime("%H:%M") +
-        '</div><div class="date">' + now_local.strftime("%A · %d/%m/%Y") + '</div></div>',
+        '</div><div class="date">' + weekday_pt + " · " + now_local.strftime("%d/%m/%Y") + '</div></div>',
         unsafe_allow_html=True
     )
 
