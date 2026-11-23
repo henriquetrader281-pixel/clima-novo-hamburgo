@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clima-nh-shell-v1';
+const CACHE_NAME = 'clima-nh-shell-v2';
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', event => {
