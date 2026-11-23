@@ -9,19 +9,19 @@ function decode(value = '') {
     .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
-    .replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
 function htmlToText(html) {
   return decode(html
-    .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')
-    .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')
-    .replace(/<\\/(p|div|tr|h[1-6]|li|td|th)>/gi, '\\n')
-    .replace(/<br\\s*\\/?>/gi, '\\n')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<\/(p|div|tr|h[1-6]|li|td|th)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, ' '))
-    .replace(/[ \\t]+/g, ' ')
-    .replace(/\\n[ \\t]+/g, '\\n')
-    .replace(/\\n{2,}/g, '\\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{2,}/g, '\n')
     .trim();
 }
 
@@ -34,7 +34,7 @@ function makeUtcDate(day, hhmm, month, year, referenceDay) {
 }
 
 function parseIssueDate(block) {
-  const match = block.match(/EMITIDO\\s+ÀS\\s+(\\d{4})Z[\\s\\S]{0,100}?(\\d{2})\\/([A-Z]{3})\\/(\\d{4})/i);
+  const match = block.match(/EMITIDO\s+ÀS\s+(\d{4})Z[\s\S]{0,100}?(\d{2})\/([A-Z]{3})\/(\d{4})/i);
   if (!match) return null;
   const month = MONTHS[match[3].toUpperCase()];
   if (month === undefined) return null;
@@ -42,7 +42,7 @@ function parseIssueDate(block) {
 }
 
 function parseNotices(text) {
-  const headers = [...text.matchAll(/AVISO\\s+NR\\.?\\s*([A-Z0-9-]+\\/\\d{4})/gi)];
+  const headers = [...text.matchAll(/AVISO\s+NR\.?\s*([A-Z0-9-]+\/\d{4})/gi)];
   const results = [];
 
   for (let i = 0; i < headers.length; i++) {
@@ -52,8 +52,8 @@ function parseNotices(text) {
     if (!/ciclone|ciclon|subtropical|tropical/i.test(block)) continue;
 
     const issue = parseIssueDate(block);
-    const validity = block.match(/VÁLIDO\\s+ATÉ\\s+(\\d{2})(\\d{4})Z/i);
-    const startAt = block.match(/A\\s+PARTIR\\s+DE\\s+(\\d{2})(\\d{4})Z/i);
+    const validity = block.match(/VÁLIDO\s+ATÉ\s+(\d{2})(\d{4})Z/i);
+    const startAt = block.match(/A\s+PARTIR\s+DE\s+(\d{2})(\d{4})Z/i);
     const validUntil = issue && validity
       ? makeUtcDate(validity[1], validity[2], issue.month, issue.year, issue.day)
       : null;
@@ -65,15 +65,15 @@ function parseNotices(text) {
     const scheduled = startsAt ? new Date(startsAt).getTime() > now : false;
     const status = expired ? 'expired' : scheduled ? 'scheduled' : validUntil ? 'active' : 'unconfirmed';
 
-    const cleanBlock = block.replace(/\\s+/g, ' ').trim();
+    const cleanBlock = block.replace(/\s+/g, ' ').trim();
     results.push({
       number: headers[i][1],
-      title: (block.match(/AVISO\\s+(?:DE|ESPECIAL)[^\\n]*/i)?.[0] || 'Aviso especial relacionado a ciclone').slice(0, 180),
+      title: (block.match(/AVISO\s+(?:DE|ESPECIAL)[^\n]*/i)?.[0] || 'Aviso especial relacionado a ciclone').slice(0, 180),
       summary: cleanBlock.slice(0, 520),
       startsAt,
       validUntil,
       status,
-      area: (block.match(/ÁREA[^.]{0,260}\\./i)?.[0] || '').slice(0, 260)
+      area: (block.match(/ÁREA[^.]{0,260}\./i)?.[0] || '').slice(0, 260)
     });
   }
   return results.filter(item => item.status !== 'expired');
