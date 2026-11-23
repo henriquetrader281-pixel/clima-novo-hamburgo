@@ -566,6 +566,32 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
   <div id="content">
 
     <div class="alerts-row" id="alertsRow"></div>
+    <section class="hazard-section" id="eventos-extremos" aria-label="Monitoramento oficial de tornados e ciclones">
+      <div class="section-heading">
+        <div><div class="section-kicker">Monitoramento de eventos extremos</div><h2>Tornados e ciclones</h2>
+        <p>Consulta separada de avisos oficiais. Previsão de vento forte não é confirmação de tornado ou ciclone.</p></div>
+        <button class="monitor-refresh" id="hazardRefreshBtn" type="button" aria-label="Atualizar monitoramento de tornados e ciclones">↻ Atualizar fontes</button>
+      </div>
+      <div class="hazard-grid">
+        <article class="hazard-card tornado-card">
+          <div class="hazard-card-top"><span class="hazard-symbol tornado-symbol" aria-hidden="true">◉</span>
+            <span class="hazard-pill" id="tornadoState"><i></i><span id="tornadoStateText">Consultando INMET…</span></span></div>
+          <h3>Monitor de tornados</h3>
+          <p class="hazard-description">Avisos do INMET que mencionam tornado ou fenômeno relacionado e alertas de temporais na região.</p>
+          <div class="hazard-results" id="tornadoDetails" aria-live="polite"><div class="hazard-empty">Verificando avisos oficiais…</div></div>
+          <div class="hazard-source">Fonte: <a href="https://apiprevmet3.inmet.gov.br/avisos/rss" target="_blank" rel="noopener">INMET · Avisos meteorológicos</a></div>
+        </article>
+        <article class="hazard-card cyclone-card">
+          <div class="hazard-card-top"><span class="hazard-symbol cyclone-symbol" aria-hidden="true">↗</span>
+            <span class="hazard-pill" id="cycloneState"><i></i><span id="cycloneStateText">Consultando Marinha…</span></span></div>
+          <h3>Monitor de ciclones</h3>
+          <p class="hazard-description">Avisos de mau tempo vigentes do Centro de Hidrografia da Marinha, incluindo avisos especiais de ciclones tropicais ou subtropicais.</p>
+          <div class="hazard-results" id="cycloneDetails" aria-live="polite"><div class="hazard-empty">Verificando avisos da Marinha…</div></div>
+          <div class="hazard-source">Fontes: <a href="https://www.marinha.mil.br/chm/dados-do-smm-avisos-de-mau-tempo/avisos-de-mau-tempo" target="_blank" rel="noopener">Avisos vigentes CHM</a> · <a href="https://www.marinha.mil.br/chm/dados-do-smm-monitoramento-de-ciclones" target="_blank" rel="noopener">Arquivo de ciclones</a></div>
+        </article>
+      </div>
+      <p class="hazard-disclaimer">Importante: tornados não são identificados apenas por velocidade de rajada. O painel só os sinaliza como aviso específico quando a fonte oficial menciona o fenômeno. O monitor do CHM cobre avisos marítimos; o arquivo de ciclones é histórico e não fornece, por si só, rastreamento ao vivo.</p>
+    </section>
 
     <div class="day-label" id="dayLabel">Agora — condições atuais</div>
 
