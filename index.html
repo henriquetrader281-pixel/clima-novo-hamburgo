@@ -447,7 +447,7 @@ h1{font-size:clamp(27px,3.3vw,43px);font-weight:700;letter-spacing:-.045em;line-
 footer{padding:16px 2px 0;border-top:1px solid var(--line);font-size:10px}
 .refresh-btn,.retry-btn,.river-notify-btn{border-radius:999px;padding:10px 15px;transition:all .2s ease}
 .refresh-btn:hover,.retry-btn:hover,.river-notify-btn:hover{background:rgba(105,184,226,.10);border-color:var(--rain-blue)}
-.hazard-section{min-width:0}
+.hazard-section{min-width:0;margin:22px 0 24px}
 .section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin:2px 0 14px}
 .section-kicker{font:10px var(--font-mono);letter-spacing:.16em;text-transform:uppercase;color:#82bedb;margin-bottom:6px}
 .section-heading h2{font:700 clamp(22px,2.6vw,29px) var(--font-display);letter-spacing:-.04em;color:#f1f7f7}
@@ -563,9 +563,6 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 
   <div class="status-msg show" id="statusMsg">Sincronizando com a estação…</div>
 
-  <div id="content">
-
-    <div class="alerts-row" id="alertsRow"></div>
     <section class="hazard-section" id="eventos-extremos" aria-label="Monitoramento oficial de tornados e ciclones">
       <div class="section-heading">
         <div><div class="section-kicker">Monitoramento de eventos extremos</div><h2>Tornados e ciclones</h2>
@@ -592,6 +589,11 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
       </div>
       <p class="hazard-disclaimer">Importante: tornados não são identificados apenas por velocidade de rajada. O painel só os sinaliza como aviso específico quando a fonte oficial menciona o fenômeno. O monitor do CHM cobre avisos marítimos; o arquivo de ciclones é histórico e não fornece, por si só, rastreamento ao vivo.</p>
     </section>
+
+  <div id="content">
+
+    <div class="alerts-row" id="alertsRow"></div>
+
 
     <div class="day-label" id="dayLabel">Agora — condições atuais</div>
 
