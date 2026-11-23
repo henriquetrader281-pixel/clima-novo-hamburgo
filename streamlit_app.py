@@ -554,7 +554,10 @@ def get_chm_notices():
             "starts": starts,
             "expires": expires,
             "active": active,
-            "area": next((line for line in lines if re.search(r"^ÁREA\\s+(?:COSTEIRA|OCEÂNICA|ENTRE|AO|DO|DA|DE)", line, re.I)), ""),
+            "expired": expired,
+            # Without a parsed expiry time, validity cannot be confirmed safely.
+            "unconfirmed": expires is None,
+            "area": next((line for line in lines if re.search(r"^ÁREA\s+(?:COSTEIRA|OCEÂNICA|ENTRE|AO|DO|DA|DE)", line, re.I)), ""),
         })
     return notices
 
@@ -626,17 +629,23 @@ def render_extreme_event_monitors():
             inmet = []
             inmet_error = str(error)
 
-        chm_cyclone_notices = [a for a in chm if not a["expired"] and re.search(r"ciclone|ciclon|subtropical|tropical", a["text"], re.I)]
-        chm_active_cyclones = [a for a in chm_cyclone_notices if a["active"]]
-        chm_unconfirmed_cyclones = [a for a in chm_cyclone_notices if a["unconfirmed"]]
+        chm_cyclone_notices = [
+            a for a in chm
+            if not a.get("expired", False)
+            and re.search(r"ciclone|ciclon|subtropical|tropical", a.get("text", ""), re.I)
+        ]
+        chm_active_cyclones = [a for a in chm_cyclone_notices if a.get("active", False)]
+        chm_unconfirmed_cyclones = [a for a in chm_cyclone_notices if a.get("unconfirmed", a.get("expires") is None)]
         inmet_cyclones = [a for a in inmet if a["local"] and a["type"] == "ciclone"]
 
         if chm_active_cyclones or inmet_cyclones:
             st.markdown('<span class="monitor-state state-alert">AVISO DE CICLONE IDENTIFICADO</span>', unsafe_allow_html=True)
             for item in chm_active_cyclones[:4]:
-                expiry = item["expires"].astimezone(LOCAL_TZ).strftime("%d/%m %H:%M") if item["expires"] else "vigência não identificada"
-                st.warning(f"**{item['title']}** · CHM aviso {item['number']} · válido até {expiry} (horário de Brasília)")
-                st.caption(item["area"])
+                expires_at = item.get("expires")
+                expiry = expires_at.astimezone(LOCAL_TZ).strftime("%d/%m %H:%M") if expires_at else "vigência não identificada"
+                st.warning(f"**{item.get('title', 'Aviso de mau tempo')}** · CHM aviso {item.get('number', 'sem número')} · válido até {expiry} (horário de Brasília)")
+                if item.get("area"):
+                    st.caption(item["area"])
                 st.markdown("[Abrir aviso vigente da Marinha ↗](" + CHM_WARNINGS_URL + ")")
             for item in inmet_cyclones[:4]:
                 _render_monitor_item(item, "INMET")
@@ -648,7 +657,7 @@ def render_extreme_event_monitors():
             st.markdown('<span class="monitor-state state-warn">AVISO LOCALIZADO · VIGÊNCIA NÃO CONFIRMADA</span>', unsafe_allow_html=True)
             st.warning("A página do CHM contém texto relacionado a ciclone, mas não foi possível validar automaticamente o horário de expiração. Confira o aviso original antes de tratá-lo como vigente.")
             for item in chm_unconfirmed_cyclones[:3]:
-                st.caption(f"CHM aviso {item['number']} · {item['title']}")
+                st.caption(f"CHM aviso {item.get('number', 'sem número')} · {item.get('title', 'Aviso de mau tempo')}")
                 st.markdown("[Conferir aviso oficial ↗](" + CHM_WARNINGS_URL + ")")
         elif chm_error or inmet_error:
             st.markdown('<span class="monitor-state state-warn">CONSULTA PARCIAL</span>', unsafe_allow_html=True)
