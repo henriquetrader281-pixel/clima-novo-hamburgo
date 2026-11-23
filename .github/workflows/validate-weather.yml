@@ -1,0 +1,44 @@
+name: Validate weather dashboard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check API JavaScript syntax
+        shell: bash
+        run: |
+          for file in api/*.js api/_lib/*.js; do
+            node --input-type=module --check < "$file"
+          done
+      - name: Check inline browser scripts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          html = Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?:\\s[^>]*)?>([\\s\\S]*?)</script>", html, flags=re.I)
+          with tempfile.TemporaryDirectory() as tmp:
+              checked = 0
+              for index, source in enumerate(scripts):
+                  if not source.strip():
+                      continue
+                  file = Path(tmp) / f"inline-{index}.mjs"
+                  file.write_text(source, encoding="utf-8")
+                  subprocess.run(["node", "--check", str(file)], check=True)
+                  checked += 1
+          print(f"Validated {checked} inline JavaScript block(s).")
+          PY
