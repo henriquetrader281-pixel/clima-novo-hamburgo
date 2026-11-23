@@ -30,7 +30,7 @@ jobs:
           import tempfile
 
           html = Path("index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script(?:\\s[^>]*)?>([\\s\\S]*?)</script>", html, flags=re.I)
+          scripts = re.findall(r"<script(?:\s[^>]*)?>([\s\S]*?)</script>", html, flags=re.I)
           with tempfile.TemporaryDirectory() as tmp:
               checked = 0
               for index, source in enumerate(scripts):
