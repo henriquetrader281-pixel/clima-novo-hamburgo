@@ -498,9 +498,13 @@ def get_inmet_alerts():
     return alerts
 
 def _chm_utc_datetime(day, hhmm, month, year, issue_day):
+    year = int(year)
     if int(day) < int(issue_day):
-        month += 1
-    return datetime(int(year), month, int(day), int(hhmm[:2]), int(hhmm[2:]), tzinfo=ZoneInfo("UTC"))
+        if month == 12:
+            month, year = 1, year + 1
+        else:
+            month += 1
+    return datetime(year, month, int(day), int(hhmm[:2]), int(hhmm[2:]), tzinfo=ZoneInfo("UTC"))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_chm_notices():
@@ -547,7 +551,7 @@ def get_chm_notices():
             "starts": starts,
             "expires": expires,
             "active": active,
-            "area": next((line for line in lines if re.search(r"ÁREA|AREA COSTEIRA", line, re.I)), ""),
+            "area": next((line for line in lines if re.search(r"^ÁREA\\s+(?:COSTEIRA|OCEÂNICA|ENTRE|AO|DO|DA|DE)", line, re.I)), ""),
         })
     return notices
 
@@ -692,7 +696,7 @@ def render_enso():
 
 # ---------------- INTERFACE PRINCIPAL ----------------
 now_local = datetime.now(LOCAL_TZ)
-hero_left, hero_right = st.columns([5, 1.15], vertical_alignment="center")
+hero_left, hero_right = st.columns([5, 1.15])
 with hero_left:
     st.markdown('<div class="caption-mono">ESTAÇÃO DO VALE · CENTRAL METEOROLÓGICA LOCAL</div>', unsafe_allow_html=True)
     st.title("Clima — Novo Hamburgo & Lomba Grande")
@@ -705,7 +709,7 @@ with hero_right:
         unsafe_allow_html=True
     )
 
-control_left, control_right = st.columns([3, 1], vertical_alignment="bottom")
+control_left, control_right = st.columns([3, 1])
 with control_left:
     station = st.selectbox("Localização", list(STATIONS.keys()), label_visibility="visible")
 with control_right:
